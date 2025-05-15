@@ -1,32 +1,13 @@
-
 import json
 import zipfile
 
-# Function below unzips the archive to the local directory. 
 
 def unzip_data(input_data_path):
+    # Unzip the archive to the local directory. 
     with zipfile.ZipFile(input_data_path, 'r') as input_data_zip:
         input_data_zip.extractall('.')
         return input_data_zip.namelist()[0]
 
-# Input data is a file with a single JSON object per line with the following format: 
-# {
-#  "reviewerID": <string>,
-#  "asin": <string>,
-#  "reviewerName" <string>,
-#  "helpful": [
-#    <int>, (indicating number of "helpful votes")
-#    <int>  (indicating total number of votes)
-#  ],
-#  "reviewText": "<string>",
-#  "overall": <int>,
-#  "summary": "<string>",
-#  "unixReviewTime": <int>,
-#  "reviewTime": "<string>"
-# }
-# 
-# We are specifically interested in the fields "helpful" and "reviewText"
-#
 
 def label_data(input_data):
     labeled_data = []
@@ -47,9 +28,8 @@ def label_data(input_data):
     return labeled_data
 
 
-# Labeled data is a list of sentences, starting with the label defined in label_data. 
-
 def split_sentences(labeled_data):
+    # Labeled data is a list of sentences, starting with the label defined in label_data. 
     new_split_sentences = []
     for d in labeled_data:
         label = d.split()[0]        
@@ -58,6 +38,7 @@ def split_sentences(labeled_data):
             if s: # Make sure sentences isn't empty. Common w/ "..."
                 new_split_sentences.append(" ".join([label, s]))
     return new_split_sentences
+
 
 def write_data(data, train_path, test_path, proportion):
     border_index = int(proportion * len(data))
@@ -70,6 +51,7 @@ def write_data(data, train_path, test_path, proportion):
         else:
             test_f.write(d + '\n')
         index += 1
+
 
 if __name__ == "__main__":
     unzipped_path = unzip_data('/opt/ml/processing/input/Toys_and_Games_5.json.zip')
