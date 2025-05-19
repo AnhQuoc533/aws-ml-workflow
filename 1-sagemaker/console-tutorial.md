@@ -14,6 +14,7 @@
     <li><a href="#amazon-sagemaker-ai">Amazon SageMaker AI</a>
     <ul>
         <li><a href="#processing-jobs">Processing jobs</a></li>
+        <li><a href="#training-jobs">Training jobs</a></li>
       </ul>
     </li>
   </ol>
@@ -95,7 +96,7 @@ However, the dataset is inside the .zip file so you have to extract it before pr
  "reviewTime": "<string>"
 }
 ```
-Later, you will be using [BlazingText algorithm](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html) in training process, which is an implemention of [Word2Vec algorithm](https://en.wikipedia.org/wiki/Word2vec) optimized for SageMaker AI. Therefore, in order for this algorithm to work, you have to format the input data correctly. It should contain a label, followed by a sentence, per line. Labels must be prefixed by the string `__label__`. 
+Later, you will be using *[BlazingText algorithm](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html)* in training process, which is an implemention of [Word2Vec algorithm](https://en.wikipedia.org/wiki/Word2vec) optimized for SageMaker AI. Therefore, in order for this algorithm to work, you have to format the input data correctly. This is true for any other algorithm or model you work with, as each of them requires a particular type and structure of the input data. In this case, the data should only consist of plain text, with each line containing a label name followed by a sentence. Labels must be prefixed by the string `__label__`. 
 
 For the dataset in this exercise, you will extract the text from the field *reviewText* and generate label based on the field *helpful* for each review. If the majority of votes is helpful, assign it `__label__1`, otherwise `__label__2`. If there is no majority or the review text is empty, drop the review from consideration. Then, cut the text into individual sentences, while ensuring that each sentence retains the original label from the review. When splitting using the character ".", make sure that no empty sentences are created, since reviews usually contain an ellipsis "..." or more. Your input data should look something like this:
 
@@ -117,36 +118,64 @@ All of the procedures mentioned above and more are collectively called *data pre
 3. Click on *Create processing job* button.
 <p align="center"><img src="img/create_job.png"></p>
 
-1. In the *Job name* field, enter a unique name for your processing job.
-2. In the *Container* field, enter registry path of a processing image stored in Amazon ECR. For this exercise, you will use scikit-learn's image.\
+4. In the *Job name* field, enter a unique name for your processing job.
+5. In the *Container* field, enter registry path of a processing image stored in Amazon ECR. For this exercise, you will use scikit-learn's image.\
 To find the registry path, go to [Docker Registry Paths and Example Code](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html). On the left navigation sidebar, choose the AWS region that you're logging in. Then, scroll down to *Scikit-learn (algorithm)* section, you will find the registry path and the version associated. Replace `<tag>` with `[version]-cpu-py3`. For example, if you choose version 1.2-1, your registry path will be `683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-scikit-learn:1.2-1-cpu-py3`\
 See the illustration below.
 <p align="center"><img src="img/path.png" width="80%"></p>
 
-1. Implement a Python script to unzip, format, and split the raw dataset as instructed earlier, or you can go ahead and use [hello_blaze_preprocess.py](hello_blaze_preprocess.py) provided. After that, upload the script to your S3 bucket. \
+6. Implement a Python script to unzip, format, and split the raw dataset as instructed earlier, or you can go ahead and use [hello_blaze_preprocess.py](hello_blaze_preprocess.py) provided. After that, upload the script to your S3 bucket. \
 If you decide to custom your own script, note that the processing job will copy the dataset from S3 to a local directory, prefixed with `/opt/ml/processing/`, within the container. Thus, your script should take the dataset in this directory as input instead. Additionally, it must output training set and testing set to specified local directories, also prefixed with `/opt/ml/processing/`. You will have a chance to set up these local directories in the next steps.
 <p align="center"><img src="img/processing_model.png"></p>
 
-1. Go to the *Input data configuration* field. Then specify the local path that the dataset will be downloaded into, e.g. `/opt/ml/processing/input/data`, and enter the S3 location (S3 URI) of the dataset.
+7. Go to the *Input data configuration* field. Then specify the local path that the dataset will be downloaded into, e.g. `/opt/ml/processing/input/data`, and enter the S3 location (S3 URI) of the dataset.
 <p align="center"><img src="img/s3_location.png" width="80%"></p>
 
-1. Click on *Add input* and specify the local path, e.g. `/opt/ml/processing/input/code`, and the S3 location of your Python code.
-2.  Go to the *App Specification* field. Then add `python3` as the first entrypoint and the local address to your Python script, e.g. `/opt/ml/processing/input/code/<your_script_name>`, as the second. If you use the provided script, you need to add the name of the dataset as a container argument.
+8. Click on *Add input* and specify the local path, e.g. `/opt/ml/processing/input/code`, and the S3 location of your Python code.
+9. Go to the *App Specification* field. Then add `python3` as the first entrypoint and the local address to your Python script, e.g. `/opt/ml/processing/input/code/<your_script_name>`, as the second. If you use the provided code, you need to add the name of the dataset as a container argument.
 <p align="center"><img src="img/app_specs.png" width="60%"></p>
 
-1.  In the *Output data configuration* field, enter the local path where your Python script saves the training set and the S3 location where you want SageMaker AI to upload.
-2.  Click on *Add input* and do the similar process for the testing set.
+10.  In the *Output data configuration* field, enter the local path where your Python script saves the training set and the S3 location where you want SageMaker AI to upload.
+11.  Click on *Add input* and do the similar process for the testing set.
 <p align="center"><img src="img/processing_output.png" width="60%"></p>
 
-1.   Select *Submit* at the bottom when all set.
+12.  Select *Submit* at the bottom when all set.
 
-Wait for a few minutes to see the processing job executed successfully or not. It it failed, click on its name, scroll down to *Monitoring* section, and select *View logs* to investigate the cause of failure. If it succeeded, you should be able to see the training set and testing set in your S3 bucket.
+Wait for a few minutes to see if your processing job executed successfully or not. It it failed, click on its name, scroll down to *Monitoring* section, and select *View logs* to investigate the cause of failure. Once the issue is identified and fixed, try again with a new processing job. If it succeeded, you should be able to see the training set and testing set in your S3 bucket.
+<p align="center"><img src="img/view_logs.png" width="60%"></p>
 
+Your input data is now ready for use in training the model. Let's move to the next phase.
 
+### Training jobs
+A training job in SageMaker AI is a managed execution of a training machine learning algorithm. You simply provide the dataset and configure the training job with the necessary parameters. SageMaker AI will take care of running the training process. When training has completed, the resulting model artifacts will be stored in the S3 location you specified.
 
+After you successfully pre-processed your dataset, it is time to train a model with it. As mentioned earlier, you will use the *BlazingText algorithm* provided by SageMaker AI as your model. So to launch a training job with this algorithm, do the following:
+1. Navigate to Amazon SageMaker AI.
+2. In the left navigation sidebar, go to *Training* → *Training jobs*.
+<p align="center"><img src="img/training.png" width="60%"></p>
 
+3. Click on *Create training job* button.
+4. Enter a unique name for your training job.
+5. Select *Text Classification & Text Embedding - Blazing Text* as your algorithm and make sure the *Input mode* is *File*.
+<p align="center"><img src="img/algo.png" width="60%"></p>
 
+6. Under *Resource configuration*, select *ml.m5.large* as instance type and specify 5 additional GBs of memory.
+7. Under *Stopping condition*, set *Maximum runtime* to 10 minutes. The training job will automatically stop if it exceeds this time limit.
+<p align="center"><img src="img/training_config.png" width="60%"></p>
 
+8. In the *Hyperparameters* field, set *mode* to *supervised*.
+<p align="center"><img src="img/hyper_mode.png" width="80%"></p>
 
+9. In the *Input data configuration* field, enter the S3 path (S3 URI) to your training set. Since the chosen algorithm only works with one type of data, plain text, you don't have to specify the content type of your input data. But if you work with other algorithms, pay attention to this.
+10. Click on *Add channel* and enter the S3 path to your testing set.
+<p align="center"><img src="img/train_set.png" width="50%"><img src="img/test_set.png" width="50%"></p>
 
+11. In the *Output data configuration* field, enter the S3 path where you want SageMaker AI to output your model artifact.
+12. All done. Click on *Create training job* to finish setting.
 
+The training job should complete within 10 minutes, then you will be able to find the model artifact generated by the job in your S3 bucket. If it fails, it is mostly due to incorrectly formatted input data or misconfiguration in the setup.
+
+Exciting! Your model is now ready to use and deploy.
+
+### Endpoints
+In SageMaker AI, an endpoint is an interface to a model in production. The endpoint allows us to send user data to the model and receives predictions back from the model-based upon that user data.
