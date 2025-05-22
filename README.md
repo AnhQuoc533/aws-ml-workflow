@@ -65,7 +65,7 @@ First, you need to clone this repository to your Amazon SageMaker AI:
 9. That's it. Let's finalize the process.
 
 When the notebook status shows _InService_, select _Open Jupyer_ and begin your learning. \
-<u>**Please note**</u>, to completely shut down your notebook instances in SageMaker AI, navigate to the _Notebook instances_ page, select the running notebook, and stop it through the _Actions_ dropdown list. This is extremely important to avoid **unwanted charges**.
+<ins>**Please note**</ins>: To completely shut down your notebook instances in SageMaker AI, navigate to the _Notebook instances_ page, select the running notebook, and stop it through the _Actions_ dropdown list. This is extremely important to avoid **unwanted charges**.
 ![stop](img/stop_notebook.png)
 
 ## Attention
