@@ -18,7 +18,7 @@ Throughout the tutorial, you will play the role of a machine learning engineer. 
 
 Overall, this repository covers the following topics:
 * Introduction to Amazon SageMaker AI.
-* Machine learning workflows automation.
+* Machine learning workflow automation.
 * Workflow monitoring.
   
 ![img](img/preview.png)

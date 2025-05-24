@@ -19,16 +19,18 @@
         <li><a href="#batch-transform-jobs">Batch transform jobs</a></li>
     </ul>
     </li>
+    <li><a href="#cloudwatch-logs">CloudWatch Logs</a></li>
+    <li><a href="#epilogue">Epilogue</a></li>
   </ol>
 </details>
 
 ## Overview
 Amazon SageMaker AI is an umbrella of services that AWS provides for Machine Learning (ML). In a nutshell, it is a service that enables the developer to be much more efficient with their valuable time when developing and deploying ML models. This methodology is applicable across many learning algorithms and many production use cases.
 
-In this exercise, you will harness some of the most commonly used microservices of SageMaker AI to contruct basic components of a machine learning workflow. By the end of this lesson, you will be able to:
+In this tutorial, you will harness some of the most commonly used microservices of SageMaker AI to contruct basic components of a machine learning workflow. By the end of this lesson, you will be able to:
 * Launch a processing job to preprocess your data.
 * Launch a training job and build your ML model.
-* Deploy an endpoint, an API for your trained model.
+* Deploy an endpoint to serve as an API for your trained model.
 * Launch a batch transform job to try out your trained model.
 <p align="center"><img src="img/sagemaker_microservices.png" width="80%"></p>
 
@@ -53,7 +55,7 @@ For example: `s3://example-bucket/1/2/3/example.txt`
 
 2. Select *Create bucket*.
 3. Enter a name for your bucket. Once created, you cannot change its name.
-4. For region, select the AWS Region close to you to minimize latency and costs.
+4. Select the AWS Region close to your location to minimize latency and costs. Additionally, remeber this region because it is going to be very important later.
 <p align="center"><img src="img/create_bucket.png" width="60%"></p>
 
 5. Scroll all the way down and select *Create bucket*.
@@ -149,7 +151,7 @@ python3 /opt/ml/processing/input/code/hello_blaze_preprocess.py review_Toys_and_
 Wait for a few minutes to see if your processing job executed successfully or not. It it failed, click on its name, scroll down to *Monitoring* section, and select *View logs* to investigate the cause of failure. Once the issue is identified and fixed, try again with a new processing job. If it succeeded, you should be able to see the training set and testing set in your S3 bucket.
 <p align="center"><img src="img/view_logs.png" width="60%"></p>
 
-Your input data is now ready for use in training the model. Let's move to the next phase.
+Your input data is now ready for use in training. Let's move to the next section.
 
 ### Training jobs
 A training job in SageMaker AI is a managed execution of training a machine learning algorithm. You simply provide the dataset and configure the training job with the necessary parameters. SageMaker AI will take care of running the training process. When the job has completed, the resulting model artifact will be stored in the S3 location you specified.
@@ -218,9 +220,9 @@ Now that you have a model object in SageMaker AI, let's deploy it with an endpoi
 5. If you want your endpoint to handle prediction request asynchronously, turn on *Async Invocation Config* and provide neccessary information. If you also want your endpoint to save prediction request and response, switch *Enable data capture* on and fill in neccessary information. \
 Otherwise, click on *Create endpoint configuration* and then *Create endpoint* at the bottom.
 
-Wait for a few moment. Once the endpoint status changes to *InService*, you can then interact with your deployed endpoint and make real-time predictions on new data. This can be done through AWS SDK, such as `boto3` or `sagemaker` modules in Python, which is covered in [SDK tutorial](sdk-tutorial.ipynb). Alternatively, you can integrate your endpoint with other AWS services like AWS Lambda and AWS Step Functions, which will be covered later.
+Wait for a few moment. Once the endpoint status changes to *InService*, you can then interact with your deployed endpoint and make real-time predictions on new data. This can be done through AWS SDK, such as `boto3` or `sagemaker` modules in Python, which is covered in [SDK tutorial](sdk-tutorial.ipynb). Alternatively, you can integrate your endpoint with other AWS services like AWS Lambda and AWS Step Functions, which will be covered in the next tutorial.
 
-When sending a prediction request to your endpoint, make sure that the input data adheres to the inference data format accepted by the algorithm you are using. For BlazingText algorithm, the inference data requires a different structure from the training data, as found in [its documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html). You will go over this in the next section. It's essential to consult the documentation of your select algorithm for the data format requirements and other important information.
+When sending a prediction request to your endpoint, check if the input data adheres to the inference data format accepted by the algorithm you are using. For BlazingText algorithm, the inference data requires a different structure from the training data, as found in [its documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html). You will go over this in the next section. It is highly recommended to consult the documentation of your select algorithm for the data format requirements and other important information.
 
 <ins>**Please note**</ins>: Creating an endpoint and keeping it active **does incur costs** on your AWS account, even if it's idle. To avoid unwanted charges, delete any endpoint right after you finish your experiments, or when you are stepping away.
 
@@ -261,4 +263,21 @@ To deploy a model using batch transform:
 
 Within a few minutes, your batch transform job will be done and you can find the result in your S3 bucket. It's an .out file containing a label prediction associated with a probability for each review sentence. Open it as a text file and you will see. If the job failed, please double-check its configuration and the format of your inference data.
 
-You may notice how poorly the model performs text classification. Since this tutorial only focuses on using AWS Services, it does not go over any tips on how to improve your model. For that, you may need to train a new model and fine-tune the hyperparameters, or experiment with different algorithms.
+You may notice how poorly the model performs text classification. Since this tutorial only focuses on using microservices of SageMaker AI, it does not go over any tips on how to improve your model. For that, you may need to train a new model and fine-tune the hyperparameters, or experiment with different algorithms. Finally, always read the documentation of the algorithm you are working with to minimize error and understand its hyperparameters. For a list of built-in algorithms of AWS and their documentation, click [here](https://docs.aws.amazon.com/sagemaker/latest/dg/algos.html).
+
+## CloudWatch Logs
+CloudWatch Logs is the log repository of your compute resources in AWS, including those used by SageMaker AI. In practice, configuring and managing in cloud services is difficult and error-prone. This is where CloudWatch Logs comes in handy. It helps you identify and troubleshoot the cause of error in a AWS service.
+
+Log into your AWS Console and navigate to CloudWatch through the search bar. After that, go to *Logs* → *Log groups* and you can see log group of every AWS service you've worked with so far. You can diagnose issues of a SageMaker AI job from there.
+<p align="center"><img src="img/cloudwatch.png"></p>
+
+Alternatively, you can go to the detail of a failed job and click on *View logs* from the field *Monitoring* or *Monitor*. This takes you to the relevant log stream in CloudWatch, allowing you to quickly inspect error messages.
+<p align="center"><img src="img/view_logs.png" width="60%"></p>
+<p align="center"><img src="img/error_log.png"></p>
+
+## Epilogue
+Congratulations! You have successfully completed the first milestone. 
+
+As a best practice, remember to delete or turn off any cost-consuming instances in AWS SageMaker AI. Moreover, you are encouraged to practice what you have learned so far to a different use case.
+
+Throughout a machine learning model development, creating a seperate job in SageMaker AI for each process is tiresome and inefficient. Fortunately, AWS provides a way to automate and orchestrate these steps into a single, streamlined workflow. Let's jump to the next tutorial and find out.
