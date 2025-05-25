@@ -42,20 +42,20 @@ Amazon Simple Storage Service (Amazon S3) is an object storage service that can 
 
 An [S3 bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingBucket.html) is a container for objects (i.e., files) stored in S3. 
 
-S3 supports the folder concept as a means of grouping objects. It does this by using a shared name *prefix*. In other words, the grouped objects have names that begin with a common string. This common string, or shared prefix, is the folder name. Object names are also referred to as key names.
+S3 supports the folder concept as a means of grouping objects. It does this by using a shared name *prefix*. In other words, the grouped objects have names that begin with a common string. This common string, or shared prefix, is the folder name. The prefix must end with a forward slash character `/` to indicate folder structure. Furthermore, object names are also referred to as key names.
 
 For example: `s3://example-bucket/1/2/3/example.txt`
- * Bucket: example-bucket 
- * Prefix: 1/2/3
- * Key name: 1/2/3/example.txt
+ * Bucket: `example-bucket`
+ * Prefix: `1/2/3/`
+ * Key name: `1/2/3/example.txt`
 
 ### Creating bucket
 1. Head to Amazon S3 using the search bar and in the left navigation sidebar, select *General purpose buckets*.
 <p align="center"><img src="img/bucket.png" width="60%"></p>
 
 2. Select *Create bucket*.
-3. Enter a name for your bucket. Once created, you cannot change its name.
-4. Select the AWS Region close to your location to minimize latency and costs. Additionally, remeber this region because it is going to be very important later.
+3. Enter a name for your bucket. It must be globally unique accross all AWS accounts. Once created, you cannot change its name.
+4. Select the AWS Region your account is logging in. Additionally, remeber this region because it is going to be very important later.
 <p align="center"><img src="img/create_bucket.png" width="60%"></p>
 
 5. Scroll all the way down and select *Create bucket*.
@@ -81,7 +81,7 @@ After uploading necessary files, the next thing to do is training a machine lear
 Step by step, you will create a model that predicts the usefulness of a product review, given only the text. This is an example of a problem in the domain of supervised sentiment analysis.
 
 ### Processing jobs
-First of all, you need the input data in order to train the model. The [dataset](../data/reviews_Toys_and_Games_5.json.zip) you will be working with is a collection of reviews for an assortment of toys and games found on Amazon. It includes, but is not limited to, the text of the review itself as well as the number of user votes on whether or not the review was helpful.
+Before training a model, you need input data. The [dataset](../data/reviews_Toys_and_Games_5.json.zip) you will be working with is a collection of reviews for an assortment of toys and games found on Amazon. It includes, but is not limited to, the text of the review itself as well as the number of user votes on whether or not the review was helpful.
 
 However, the dataset is inside a .zip file so you have to extract it before proceeding. Moreover, the dataset is a file containing a single JSON object per line representing a review with the following format: 
 ```JSON
@@ -102,7 +102,7 @@ However, the dataset is inside a .zip file so you have to extract it before proc
 ```
 Later, you will be using [BlazingText algorithm](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html) in training process, which is an implemention of [Word2Vec algorithm](https://en.wikipedia.org/wiki/Word2vec) optimized for SageMaker AI. Therefore, in order for this algorithm to work, you have to format the input data correctly. This is true for any other algorithm or model you work with, as each of them requires a particular type and structure of the input data. In this case, the data should only consist of plain text, with each line containing a label name followed by a sentence. Labels must be prefixed by the string `__label__`. 
 
-For the dataset in this exercise, you will extract the text from the field *reviewText* and generate label based on the field *helpful* for each review. If the majority of votes is helpful, assign it `__label__1`, otherwise `__label__2`. If there is no majority or the review text is empty, drop the review from consideration. Then, cut the text into individual sentences, while ensuring that each sentence retains the original label from the review. When splitting using the character ".", make sure that no empty sentences are created, since reviews usually contain an ellipsis "..." or more. Your input data should look something like this:
+For the dataset in this exercise, you will extract the text from the field *reviewText* and generate label based on the field *helpful* for each review. If the majority of votes is helpful, assign it `__label__1`, otherwise `__label__2`. If there is no majority or the review text is empty, drop the review from consideration. Then, cut the text into individual sentences, while ensuring that each sentence retains the original label from the review. When splitting using the character `.`, make sure that no empty sentences are created, since reviews usually contain an ellipsis `...` or more. Your input data should look something like this:
 
 ```
 __label__1 Even if you can only play with one other person, you'll want to pull Stone Age out often
@@ -114,7 +114,7 @@ __label__2 If you're new to gaming or like relatively simple games I recommend y
 
 Finally, it is your responsibility is to split the dataset into training set and testing set. Training set should represent 80% of the dataset, while the rest is testing set. Make sure that they don't overlap.
 
-All of the procedures mentioned above and more are collectively called *data pre-processing*, the first and most crucial step in any machine learning project. To do all of that in AWS, follow these steps:
+All of the procedures mentioned above and more are collectively called *data pre-processing*, the first and most crucial step in any machine learning project. To do all of that, follow these steps:
 1. Navigate to Amazon SageMaker AI.
 2. In the left navigation sidebar, go to *Processing* → *Processing jobs*.
 <p align="center"><img src="img/processing.png" width="60%"></p>
@@ -127,7 +127,7 @@ All of the procedures mentioned above and more are collectively called *data pre
 To find the registry path, go to [Docker Registry Paths and Example Code](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html). On the left navigation sidebar, choose the AWS region that you're logging in. Then, scroll down to *Scikit-learn (algorithm)* section, you will find the registry path and the version associated. Replace `<tag>` with `[version]-cpu-py3`. For example, if you choose version 1.2-1, your registry path will be `683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-scikit-learn:1.2-1-cpu-py3`
 <p align="center"><img src="img/scikit_path.png" width="80%"></p>
 
-6. Implement a Python script to unzip, format, and split the raw dataset as instructed earlier, or you can go ahead and use [hello_blaze_preprocess.py](hello_blaze_preprocess.py) provided. After that, upload the script to your S3 bucket. \
+6. Implement a Python script to unzip, format, and split the raw dataset as previously instructed, or you can go ahead and use [hello_blaze_preprocess.py](hello_blaze_preprocess.py) provided. After that, upload the script to your S3 bucket. \
 If you decide to custom your own script, note that the processing job will copy the dataset from S3 to a local directory, prefixed with `/opt/ml/processing/`, within the container. Thus, your script should take the dataset in this directory as input instead. Additionally, it must output training set and testing set to specified local directories, also prefixed with `/opt/ml/processing/`. You will have a chance to set up these local directories in the next steps.
 <p align="center"><img src="img/processing_model.png"></p>
 
@@ -146,7 +146,7 @@ python3 /opt/ml/processing/input/code/hello_blaze_preprocess.py review_Toys_and_
 11. Click on *Add input* and do the similar process for the testing set.
 <p align="center"><img src="img/processing_output.png" width="60%"></p>
 
-12.  Select *Submit* at the bottom when all set.
+12. Select *Submit* at the bottom when all set.
 
 Wait for a few minutes to see if your processing job executed successfully or not. It it failed, click on its name, scroll down to *Monitoring* section, and select *View logs* to investigate the cause of failure. Once the issue is identified and fixed, try again with a new processing job. If it succeeded, you should be able to see the training set and testing set in your S3 bucket.
 <p align="center"><img src="img/view_logs.png" width="60%"></p>

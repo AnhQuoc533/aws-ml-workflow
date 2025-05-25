@@ -57,7 +57,7 @@ First, you need to clone this repository to your Amazon SageMaker AI:
 4. Select _Create notebook instance_.
    ![img](img/create_notebook.png)
 5. Type in the notebook instance name of your choice.
-6. In the _Permissions and encryption_ section, click on the first dropdown menu and select _Create a new role_ for operating SageMaker and S3 if you don't have one or this is your new experience.
+6. In the _Permissions and encryption_ section, click on the first dropdown menu and select _Create a new role_ for operating SageMaker AI and S3 if you don't have one or this is your new experience.
    ![im](img/new_role.png)
 7. Leave the setting as is and select _Create role_.
 8. In the _Git repositories_ section, choose _Clone a public Git repository to this notebook instance only_ and paste the URL of this Git repository in the second box.
