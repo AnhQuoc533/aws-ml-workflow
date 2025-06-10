@@ -31,7 +31,7 @@ There are three main ways to interact with services in AWS:
 * **AWS Software Development Kits (SDKs)**: libraries that allow you to *programmatically* interact with AWS services from your own applications. They are available for a variety of programming languages and are a good option for developers who want to build applications that use AWS.
 * **AWS Command Line Interface (CLI)**: a tool that allows you to interact with AWS services using a command-line interface. It is more powerful than the console, but it also requires more technical knowledge to use and is hard to handle. It is generally used for one-off jobs.
 
-This tutorial covers only two of the mentioned approaches, AWS Console and AWS SDKs, in each topic.
+This tutorial covers only two of the mentioned approaches, AWS Console and AWS SDK for Python, in each topic.
 
 ## Prerequisites
 To succeed in this tutorial, you should already possess the following:
@@ -42,12 +42,12 @@ To succeed in this tutorial, you should already possess the following:
 _You can create an AWS Free Tier account via https://aws.amazon.com/free._ 
 
 ## Getting Started
-### Practice with Amazon Console
+### Practice with AWS Console
 Simply clone this repository to your computer.
 ```
 git clone https://github.com/AnhQuoc533/aws-ml-workflow
 ```
-### Practice with Amazon SDKs
+### Practice with Amazon SDK for Python
 First, you need to clone this repository to your Amazon SageMaker AI:
 1. Log into your AWS Console.
 2. Navigate to Amazon SageMaker AI through the search bar, or click [here](https://console.aws.amazon.com/sagemaker/home#/notebook-instances) and skip to step 4. Bookmarking this service is recommended.

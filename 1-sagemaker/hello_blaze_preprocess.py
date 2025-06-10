@@ -72,5 +72,5 @@ if __name__ == "__main__":
     labeled_data = label_data(unzipped_path)
     new_split_sentence_data = split_sentences(labeled_data)
 
-    filename = unzipped_path.split(".", maxsplit=1)[0]
-    write_data(new_split_sentence_data, f'/opt/ml/processing/output/train/{filename}_train.txt', f'/opt/ml/processing/output/test/{filename}_test.txt', .8)
+    data_name = args.filename.split(".", maxsplit=1)[0]
+    write_data(new_split_sentence_data, f'/opt/ml/processing/output/train/{data_name}_train.txt', f'/opt/ml/processing/output/test/{data_name}_test.txt', .8)
