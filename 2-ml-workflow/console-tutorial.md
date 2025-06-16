@@ -95,7 +95,7 @@ As seen earlier, a Lambda function is triggered through an event. It is a JSON o
 To trigger your Lambda function synchronously, you can use AWS SDK or integrate it into workflows using AWS Step Functions. But for now, you will simulate a synchronous invocation with test events, just as you did previously:
 1. Go to your S3 bucket and upload the dataset [`reviews_Musical_Instruments_5.json.zip`](../data/reviews_Musical_Instruments_5.json.zip).
 2. Modify the code of Lambda function you created earlier so that it acts as a data preprocessing script, similar to the one used in your processing jobs. Alternatively, you can upload [code.zip](./code.zip) provided to override your Lambda function's code. Simply select *Upload from* → *.zip file* and upload the file. Note that the name of the Python file containing the function handler must be `lambda_function.py`, not any name.\
-If you decide to implement your own Lambda function, remember to properly define `lambda_handler` function, as your Lambda function will only execute this function. Moreover, the code should get the S3 location of the raw dataset extracted from the `event` argument, which will be explained later, and should directly upload training set and testing set into your S3 bucket. Lastly, Lambda function restricts your file operations within the local directory `/tmp/`. Hence, all files created, downloaded, or extracted must be in this folder.
+If you decide to implement your own Lambda function, remember to properly define `lambda_handler` function, as your Lambda function will only execute this function. If needed, you can include helper functions in your code. Moreover, your code should directly download the raw dataset using its S3 location extracted from the `event` argument, which will be explained later, and should directly upload training set and testing set into your S3 bucket. These actions requires you to work with AWS SDK for Python, i.e. [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html). Lastly, Lambda function restricts your file operations within the local directory `/tmp/`. Hence, all files created, downloaded, or extracted must be in this folder.
 <p align="center"><img src="img/upload-code.png" width="80%"></p>
 
 3. Go to *Configuration* tab, select *General configuration* on the left sidebar. Then select *Edit* on the right.
@@ -104,7 +104,7 @@ If you decide to implement your own Lambda function, remember to properly define
 4. Under *Timeout*, set it to about 5 minutes. And under *Existing role*, click on *View the role*. This will navigate you to *Identity and Access Management (IAM)* console of your Lamdba function's role.
 <p align="center"><img src="img/timeout.png"></p>
 
-5. Since your Lamdba function's role is automatically created, it doesn't have the permission to access S3. Therefore, you have to grant that permission to the role. From the role console, go to *Add permissions* → *Attach policies*.
+5. Since your Lamdba function's role is automatically created, it doesn't have the permission to access S3. Therefore, you have to grant it that permission. From the role console, go to *Add permissions* → *Attach policies*.
 <p align="center"><img src="img/add-permission.png"></p>
 
 6. Search for *AmazonS3FullAccess* and select it. Scroll down and click on *Add permissions* button.
@@ -150,15 +150,189 @@ Unlike synchronous invocation, you cannot receive a direct response message from
 Similarly, you can construct one Lambda function for a training job, one for an endpoint deployment, and one for a batch transform job. Each performs a specific step using AWS SDK. Then, you can chain them all together and form a fully automated machine learning workflow, all thanks to AWS Step Functions.
 
 ## AWS Step Functions
+### Introduction
 AWS Step Functions is a visual workflow service that helps you use AWS services to build distributed applications, automate processes, orchestrate microservices, and create ML workflows.
 
 It is based on two abstractions:
 * State machine: serverless workflow, which is a series of event-driven steps.
 * Task: a state within a workflow that represents a single unit of work performed by another AWS service.
 
-If you want to construct an ML workflow using AWS Step Functions console, it is generally easier to create a separate Lambda function for each component of the workflow and chain them together. On the other hand, directly chaining microservices of Amazon SageMaker AI requires a deeper understanding of the [Amazon States Language (ASL)](https://states-language.net/spec.html) to configure each component via console. However, you can still do this by using AWS SDKs without the need of ASL.
+Advantages:
+* Intuitive UI.
+* Easy visualization.
+* Easy isolation of failure points.
 
-Since you have already built a Lambda function for pre-processing raw dataset, you will use it as part of the workflow instead of creating a new one which initiates a processing job in Amazon SageMaker AI. In the following steps, you will use AWS SDK for Python to build desired Lambda functions. Thus, you will find this [tutorial](../1-sagemaker/sdk-tutorial.ipynb) useful.
+Disadvantages:
+* Significantly more expensive than Lambda function.
+* Dependent on proprietary Amazon State Language.
+* Not compatible with similar orchestration tools in other platforms.
 
-First of all, you need to create a role and your Lambda functions will use it to gain access to S3 and SageMaker AI:
-1. Head to AWS Lambda using the search bar and in the left navigation sidebar, select *Functions*.
+### Creating a workflow
+In AWS Step Functions console, you will directly intergrate and chain several microservices of Amazon SageMaker AI in order to construct an ML workflow. This requires a deeper understanding of the [Amazon States Language (ASL)](https://states-language.net/spec.html) to configure each component. 
+
+The Amazon States Language is a JSON-based, structured language used to define your state machine. It mostly resembles a nested dictrionary in Python. It utilizes [JSONata](https://docs.jsonata.org/overview.html) as the default query language. When a state machine execution receives JSON input from execution, it passes that data to the first state in the workflow as input. With JSONata, you can retrieve a state input from `$states.input`. If a state is successfully completed, its API response will be stored in `$states.result`. Furthermore, you can use JSONata to dynamically configure your state machine during each execution.
+<p align="center"><img src="img/vars-jsonata.png"></p>
+
+In this exercise, you will embedded JSONata expression inside a string value. The expression must start with `{%` with no leading spaces, and must end with `%}` with no trailing spaces. Improperly opening or closing the expression will result in a validation error.
+```JSON
+"{% <JSONata expression> %}"
+```
+Any JSONata functions or variables must start with the character `$`, e.g. `$states.result` or `$split($variable_1)[0]`. Moreover, because the JSONata expression is in a string value, to add a string into the expression, use the single quote `'` instead of double. Finally, to concatenate string, use the ampersand character `&`, e.g. `{% $states.input.prefix & 'train/' %}`.
+
+For more information, read [this](https://docs.aws.amazon.com/step-functions/latest/dg/transforming-data.html#writing-jsonata-expressions-in-json-strings) and [this](https://docs.aws.amazon.com/step-functions/latest/dg/workflow-variables.html).
+
+No worries, this tutorial will help you set up an ML workflow with ASL along the way:
+1. Head to Step Functions using the search bar and in the left navigation sidebar, select *State machines*.
+2. Click the *Create state machine* button.
+3. In the pop-up window, select *Create from blank*, give a unique name for your state machine, and select *Standard* for *State machine type*.
+<p align="center"><img src="img/state-machine.png"></p>
+
+4. Take a look at the workflow in the picture below. Now, use the search bar in the left sidebar and find the illustrated states and drag them onto the graph canvas to create the corresponding workflow. Rename each state as needed.
+<p align="center"><img src="img/stepfunctions-graph.png"></p>
+
+5. Click on the first state. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
+<p align="center"><img src="img/sync.png" width="60%"></p>
+
+6. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead. You will gradually add more fields to correctly configure this state. For more information about SageMaker AI CreateProcessingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html).
+<p align="center"><img src="img/arg-config.png" width="60%"></p>
+
+```JSON
+{
+  "ProcessingJobName": "?",
+  "RoleArn": "?"
+}
+```
+7. Since the name for new processing job must be unique, you should not hard-code its name in the *ProcessingJobName* field. If a static name is used, the state machine will create processing job with the same name for every execution, which will cause error and disrupt the workflow. Instead, dynamically generate a unique name using JSONata expression. In the *ProcessingJobName* field, enter the leading name of your choice and concatenate it with the function `millis()`. For example, `{% 'BlazingText-' & $millis() %}`.
+
+8. In the *RoleArn* field, enter the ARN (Amazon Resource Name) of the role you created and used throughout your SageMaker AI experiments in the last tutorial. To do this, head to IAM using the search bar.
+       <p align="center"><img src="img/iam.png" width="80%"></p>
+       In the left navigation sidebar, go to *Access Management* → *Roles*. Then click on the name of the role and you will be able to see its ARN.
+       <p align="center"><img src="img/role.png"></p>
+       <p align="center"><img src="img/sagemaker-role.png"></p>
+
+9. Add the field below to set up the resources for the job. Remember to seperate it from the previous field with a comma.
+    ```JSON
+    "ProcessingResources": {
+      "ClusterConfig": {
+        "InstanceCount": 1,
+        "InstanceType": "ml.m5.large",
+        "VolumeSizeInGB": 1
+      }
+    }
+    ```
+
+10. Add the field below to set up the inputs for the job. Remember to seperate it from the previous field with a comma. This field contains a list. Just like before, your processing job will have 2 inputs: raw dataset and Python script. So, this list contains two corresponding elements.
+    ```JSON
+    "ProcessingInputs": [
+      {
+        "InputName": "input",
+        "S3Input": {
+          "S3DataType": "S3Prefix",
+          "S3InputMode": "File",
+          "S3Uri": "?",
+          "LocalPath": "?"
+        }
+      },
+      {
+        "InputName": "code",
+        "S3Input": {
+          "S3DataType": "S3Prefix",
+          "S3InputMode": "File",
+          "S3Uri": "?",
+          "LocalPath": "?"
+        }
+      }
+    ]
+    ```
+    The first element of the list is for the dataset. Provide its S3 location and local path in the corresponding subfields, *S3Uri* and *LocalPath*. Each execution of the state machine will require you to work with different dataset in different bucket. Thus, you should use JSONata expression to retrieve the S3 location of the dataset from the state input, e.g. `{% $states.input.prefix & $states.input.dataset %}`. Since this is the first state in your state machine, its input will directly be the input of state machine. Later, you will execute your state machine with an input like this:
+    ```JSON
+    {
+    "bucket": "your-bucket",
+    "prefix": "s3://your-bucket/data/",
+    "dataset": "reviews_Musical_Instruments_5.json.zip"
+    }
+    ```
+    The second element is for the Python script. Provide the S3 location and the local path in the corresponding subfields. No JSONata expression needed.
+
+11. Add the below field. As before, find and enter the registry path of scikit-learn's processing image in the *AppSpecification* field. For the second element of the *ContainerEntrypoint* field, enter the local address to your Python script, e.g. `/opt/ml/processing/input/code/<your_script_name>`. If you use the provided Python code, enter a JSONata expression in the *ContainerArguments* field, which retrieves the dataset name through state input. Otherwise, remove this subfield.
+    ```JSON
+    "AppSpecification": {
+      "ImageUri": "?",
+      "ContainerEntrypoint": [
+        "python3",
+        "?"
+      ],
+      "ContainerArguments": [
+        "?"
+      ]
+    }
+    ```
+
+12. Add the below field to set up the outputs for the job. The *Outputs* field contains a list with two items defining the configuration for the training set and the testing set. In each element, specify where the set should be uploaded in your bucket in the field *S3Uri*, and the local path where your Python script saves the set in the *LocalPath* field. Use JSONata expressions to dynamically determine the S3 output locations from the state input. 
+    ```JSON
+    "ProcessingOutputConfig": {
+      "Outputs": [
+        {
+          "OutputName": "train_set",
+          "S3Output": {
+            "S3Uri": "?",
+            "LocalPath": "?",
+            "S3UploadMode": "EndOfJob"
+          }
+        },
+        {
+          "OutputName": "test_set",
+          "S3Output": {
+            "S3Uri": "?",
+            "LocalPath": "?",
+            "S3UploadMode": "EndOfJob"
+          }
+        }
+      ]
+    }
+    ```
+13. You have done setting up all required and important arguments for the first state. But you need to define the output of this state so that it will pass the expected S3 locations of the training set and the testing set to the next state in the workflow. Jump to the *Output* field right below and enter the following:
+    ```JSON
+    {
+      "train": "?",
+      "test": "?"
+    }
+    ```
+    In each field, use JSONata to contruct S3 location from the state input. The exact object names will depend on how your Python script saves the files. If you are using the provided code, use with the following instead:
+    ```JSON
+    {
+      "train": "{% $states.input.prefix & 'train/' & $split($states.input.dataset, '.', 1)[0] & '_train.txt' %}",
+      "test": "{% $states.input.prefix & 'test/' & $split($states.input.dataset, '.', 1)[0] & '_test.txt' %}"
+    }
+    ```
+
+14. Go to the *Variables* tab and enter the text shown below to assign the bucket name extracted from this state's input to the variable `bucket`. This variable can be later referenced in subsequent states.
+<p align="center"><img src="img/variables.png" width="60%"></p>
+
+15. Click on the second state in the workflow. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://docs.aws.amazon.com/step-functions/latest/dg/transforming-data.html

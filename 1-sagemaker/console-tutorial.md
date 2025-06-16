@@ -145,7 +145,7 @@ python3 /opt/ml/processing/input/code/hello_blaze_preprocess.py review_Toys_and_
 <p align="center"><img src="img/app_specs.png" width="60%"></p>
 
 10. In the *Output data configuration* field, enter the local path where your Python script saves the training set and the S3 location where you want SageMaker AI to upload.
-11. Click on *Add input* and do the similar process for the testing set.
+11. Click on *Add output* and do the similar process for the testing set.
 <p align="center"><img src="img/processing_output.png" width="60%"></p>
 
 12. Select *Submit* at the bottom when all set.
@@ -177,8 +177,8 @@ After you successfully pre-processed your dataset, it is time to train a model w
 8. In the *Hyperparameters* field, set *mode* to *supervised*.
 <p align="center"><img src="img/hyper_mode.png" width="60%"></p>
 
-9. In the *Input data configuration* field, enter the S3 path (S3 URI) to your training set. Since the chosen algorithm only works with one type of data, plain text, you don't have to specify the content type of your data. But if you work with other algorithms, pay attention to this in their documentation, as they may have different data format options to select.
-10. Click on *Add channel* and enter the S3 path to your testing set.
+9. In the *Input data configuration* field, enter the S3 path to your training set. Since the chosen algorithm only works with one type of data, plain text, you don't have to specify the content type of your data. But if you work with other algorithms, pay attention to this in their documentation, as they may have different data format options to select.
+10. Click on *Add channel* and enter the S3 path to your testing set. Type `validation` for the *Channel name*.
 <p align="center"><img src="img/train_set.png" width="50%"><img src="img/test_set.png" width="50%"></p>
 
 11. In the *Output data configuration* field, enter the S3 path where you want SageMaker AI to output your model artifact.
@@ -234,7 +234,7 @@ For BlazingText algorithm, the inference data requires a different structure fro
 ### Batch transform jobs
 Batch Transform is a compute job that performs inference using your trained model on large datasets. A batch transform job is ideal for large-scale predictions where low latency is not a priority. This differs from an endpoint in that endpoints service real-time, individual user requests for inference over time.
 
-To deploy a model using batch transform:
+To deploy a model with a batch transform job:
 1. Navigate to Amazon SageMaker AI.
 2. In the left navigation sidebar, go to *Inference* → *Batch transform jobs*.
 <p align="center"><img src="img/batch_job.png" width="60%"></p>
