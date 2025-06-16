@@ -147,7 +147,7 @@ Unlike synchronous invocation, you cannot receive a direct response message from
 <ins>**Please note**</ins>: You are billed for every Lambda function invocation, even if it is a test event. Therefore, refrain yourself from spamming invocations and delete all triggers after you finish your experiment.
 <p align="center"><img src="img/delete-trigger.png"></p>
 
-Similarly, you can construct one Lambda function for a training job, one for an endpoint deployment, and one for a batch transform job. Each performs a specific step using AWS SDK. Then, you can chain them all together and form a fully automated machine learning workflow, all thanks to AWS Step Functions.
+Similarly, you can construct a Lambda function to automate a workflow in AWS Step Functions with invocations.
 
 ## AWS Step Functions
 ### Introduction
@@ -184,16 +184,16 @@ For more information, read [this](https://docs.aws.amazon.com/step-functions/lat
 No worries, this tutorial will help you set up an ML workflow with ASL along the way:
 1. Head to Step Functions using the search bar and in the left navigation sidebar, select *State machines*.
 2. Click the *Create state machine* button.
-3. In the pop-up window, select *Create from blank*, give a unique name for your state machine, and select *Standard* for *State machine type*.
+3. In the pop-up window, select *Create from blank*, give a unique name for your state machine, and select *Standard* for *State machine type*. Finally, click on the *Continue* button.
 <p align="center"><img src="img/state-machine.png"></p>
 
-4. Take a look at the workflow in the picture below. Now, use the search bar in the left sidebar and find the illustrated states and drag them onto the graph canvas to create the corresponding workflow. Rename each state as needed.
+4. Take a look at the picture below. Now, use the search bar in the left sidebar of the console, find the illustrated states, and drag them onto the graph canvas to create the corresponding workflow. Rename each state as needed.
 <p align="center"><img src="img/stepfunctions-graph.png"></p>
 
 5. Click on the first state. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
 <p align="center"><img src="img/sync.png" width="60%"></p>
 
-6. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead. You will gradually add more fields to correctly configure this state. For more information about SageMaker AI CreateProcessingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html).
+6. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead. You will gradually add more fields to correctly configure this state. For more information about CreateProcessingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html).
 <p align="center"><img src="img/arg-config.png" width="60%"></p>
 
 ```JSON
@@ -202,7 +202,7 @@ No worries, this tutorial will help you set up an ML workflow with ASL along the
   "RoleArn": "?"
 }
 ```
-7. Since the name for new processing job must be unique, you should not hard-code its name in the *ProcessingJobName* field. If a static name is used, the state machine will create processing job with the same name for every execution, which will cause error and disrupt the workflow. Instead, dynamically generate a unique name using JSONata expression. In the *ProcessingJobName* field, enter the leading name of your choice and concatenate it with the function `millis()`. For example, `{% 'BlazingText-' & $millis() %}`.
+7. Since the name for new processing job must be unique, you should not hard-code its name in the *ProcessingJobName* field. If a static name is used, the state machine will create processing job with the same name for every execution, which will cause error and disrupt the workflow. Instead, dynamically generate a unique name using JSONata expression. In the *ProcessingJobName* field, enter the leading name of your choice and concatenate it with the function `millis()`. For example, `{% 'BlazingText-' & $millis() %}`. Feel free to use different expression.
 
 8. In the *RoleArn* field, enter the ARN (Amazon Resource Name) of the role you created and used throughout your SageMaker AI experiments in the last tutorial. To do this, head to IAM using the search bar.
        <p align="center"><img src="img/iam.png" width="80%"></p>
@@ -291,14 +291,14 @@ No worries, this tutorial will help you set up an ML workflow with ASL along the
       ]
     }
     ```
-13. You have done setting up all required and important arguments for the first state. But you need to define the output of this state so that it will pass the expected S3 locations of the training set and the testing set to the next state in the workflow. Jump to the *Output* field right below and enter the following:
+13. You have done setting up all required and important arguments for the first state. But you need to define the output of this state so that it will pass the expected S3 locations of the training set and the testing set to the next state in the workflow. Scroll to the *Output* field right below and enter the following:
     ```JSON
     {
       "train": "?",
       "test": "?"
     }
     ```
-    In each field, use JSONata to contruct S3 location from the state input. The exact object names will depend on how your Python script saves the files. If you are using the provided code, use with the following instead:
+    In each field, use JSONata expression to contruct S3 location from the state input. The exact object names will depend on how your Python script saves the files. If you are using the provided Python script, use with the following instead:
     ```JSON
     {
       "train": "{% $states.input.prefix & 'train/' & $split($states.input.dataset, '.', 1)[0] & '_train.txt' %}",
