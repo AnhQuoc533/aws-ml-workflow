@@ -123,7 +123,7 @@ If you decide to implement your own Lambda function, remember to properly define
 <p align="center"><img src="img/test-event.png" width="80%"></p>
 
 9. In *Event JSON*, you can see that this is what will be sent to your Lambda function’s handler, via the `event` argument. To match the desired test scenario, replace the text inside the *name* field under the *bucket* field with your S3 bucket name. Also, replace the text inside the *key* field under the *object* field with key name of newly uploaded dataset, not its S3 location as explained in the first tutorial. These are the two values your function handler should extract from the `event` argument. \
-Note that the *Records* field in the event payload contains a list, not subfields. This allows AWS S3 to notify a Lambda function about multiple object-related events in a single invocation. In this case, it would be two or more files uploaded simultaneously. Therefore, your code should iterate over this list to handle each record.
+Note that the *Records* field in the event payload contains a list, not subfields. This allows AWS S3 to notify a Lambda function about multiple object-related events in a single invocation. In this case, it would be two or more files uploaded simultaneously. Therefore, your code should iterate over this list to handle each individual record.
 <p align="center"><img src="img/test-json.png"></p>
 
 10. Give this test event a name and save it, if necessary. Then, click on the *Test* button to trigger your Lambda function.
@@ -538,7 +538,7 @@ Keep in mind that the test state feature does not support [*Activity tasks*](htt
 The final step of this tutorial is to automate your newly made ML workflow. You can do this by utilizing Lambda function in conjunction with the AWS SDK for Python:
 1. Create a Lambda function with a Python runtime.
 2. Attach *AWSStepFunctionsFullAccess* to the role of this Lambda function.
-3. Use this code in your function. Enter your state machine's ARN in the missing part.
+3. Use this code in your function. Enter your state machine's ARN in the missing part. Feel free to modify `input` to make it compatible with your state machine.
     ```python
     import json
     import boto3
@@ -556,7 +556,7 @@ The final step of this tutorial is to automate your newly made ML workflow. You 
             client.start_execution(stateMachineArn=stateMachineArn, input=input) 
         return {
             'statusCode': 200,
-            'body': 'MLWorkflow lanched successfully'
+            'body': 'Workflow lanched successfully'
         }
     ```
 4. Add an *S3* trigger with 2 event types, *PUT* and *Multipart upload completed*, to the function with approriate configuration, as guided from the previous section.
