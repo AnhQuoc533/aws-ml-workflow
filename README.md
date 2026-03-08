@@ -1,5 +1,5 @@
 # DEVELOPING MACHINE LEARNING WORKFLOWS WITH AWS
-<!-- TABLE OF CONTENTS -->
+
 <details>
   <summary><h2>Table of Contents</h2></summary>
   <ol>
@@ -70,6 +70,8 @@ When the notebook status shows _InService_, select _Open Jupyer_ and begin your 
 
 ## Attention
 *  The tutorial in this repository _may_ be outdated due to future updates of AWS. In some cases, this may change the way the features are accessed or appear on the console. But in most cases, the generic workflow progression will remain the same.
+
+* Even though it is possible to practice with Amazon SDK on your local machine, it is easier and more secure to do it on Amazon Sagemaker AI's notebook instance.
   
 * Always remember to clean up all resources, especially Amazon SageMaker AI, immediately after use or if you are stepping away. Any service available to you at $0.1/hour or higher should be monitored closely. Moreover, bear in mind that there is a limited amount of AWS budget allocated in the Free Tier account if you are using this option.\
 To better understand pricing, see [Pricing for AWS products](https://aws.amazon.com/pricing#:~:text=Pricing%20for%20AWS%20products). \

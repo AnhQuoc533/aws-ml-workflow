@@ -283,6 +283,6 @@ Alternatively, you can go to the detail of a failed job and click on *View logs*
 ## Epilogue
 Congratulations! You have successfully completed the first milestone. 
 
-As a best practice, __remember to delete or turn off__ any cost-consuming instances in AWS SageMaker AI. Moreover, you are encouraged to practice what you have learned so far to a different use case.
+As a best practice, __remember to delete or turn off__ any cost-consuming instances in Amazon SageMaker AI. Moreover, you are encouraged to practice what you have learned so far to a different use case.
 
-Throughout a machine learning model development, creating a seperate job in SageMaker AI for each phase is tiresome and inefficient. Fortunately, AWS provides a way to automate and orchestrate these steps into a single, streamlined workflow. Let's jump to the next tutorial and find out.
+Throughout a machine learning model development, creating a seperate job in SageMaker AI for each phase is tiresome and inefficient. Fortunately, AWS provides a way to orchestrate and automate these steps into a single, streamlined workflow. Let's jump to the next tutorial and find out.

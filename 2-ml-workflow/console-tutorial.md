@@ -41,10 +41,10 @@ AWS Lambda is a serverless compute service that runs a single, self-contained fu
 In the programming realm, it is common to encounter situations where code that works on one machine often fails on another. Even in the managed services like Amazon SageMaker AI, you can still run into failures when running under different configurations. This is not the case in AWS Lambda.
 
 ### Lambda functions
-A Lambda function is a piece of code that runs in response to events. When invoked, Lambda runs the function handler to process events and return necessary response. The handler function is the entry point of a Lambda function and other AWS services will use it to interact with your code. While the code in a Lambda function can  ontain more than one function, it can only have one handler.
+A Lambda function is a piece of code that runs in response to events. When invoked, Lambda runs the function handler to process events and return necessary response. The handler function is the entry point of a Lambda function and other AWS services will use it to interact with your code. While the code in a Lambda function can  ontain more than one function, it can only have one function handler.
 
 The handler function must match the name and structure expected by the runtime environment. For Python, the function must have:
-* Name: `lambda_handler`
+* Name: `lambda_handler` (unless configured otherwise in *Runtime settings*).
 * First parameter: `event`, a dictionary containing the event data that triggered the Lambda function.
 * Second parameter: `context`, an object provided by AWS Lambda that gives [methods and properties](https://docs.aws.amazon.com/lambda/latest/dg/python-context.html) to access information about the invocation, function, and execution environment.
 * Optional response to return, in the form of a dictionary containing status message.
@@ -82,14 +82,14 @@ In this exercise, you're going to create a basic Lambda function in Python. Then
 12. Go back to the *Test* tab and run the same test event again. You will soon receive a notification showing fail execution and the error message from the function.
 <p align="center"><img src="img/test-fail.png" width="90%"></p>
 
-13. However, if an error occurred outside a test environment, e.g. algorithmic error from a processing job, and you want to see what the issue is, go to the *Monitor* tab and and click on *View CloudWatch logs* button. It will direct you to CloudWatch Logs regarding your Lambda function. 
+13. However, if an error occurred outside Lambda environment, e.g. algorithmic error from a processing job, and you want to see what the issue is, go to the *Monitor* tab and and click on *View CloudWatch logs* button. It will direct you to CloudWatch Logs regarding your Lambda function. 
 <p align="center"><img src="img/function-logs.png" width="80%"></p>
 
 14. Click through the log of an event you want to investigate and you can see the error message from there.
 <p align="center"><img src="img/error-log.png" width="80%"></p>
 
 ### Invoking a Lambda function
-There are two types of Lambda function invocation:
+There are two types of Lambda function invocations:
 * Synchronous invocation will launch the function and expect a immediate response from the function. As a general rule, you'll be invoking Lambda functions synchronously in ML engineering operations.
 <p align="center"><img src="img/invocation-sync.png" width="40%"></p>
 
@@ -102,8 +102,8 @@ As seen earlier, a Lambda function is triggered through an event. It is a JSON o
 
 To trigger your Lambda function synchronously, you can use AWS SDK or integrate it into workflows using AWS Step Functions. But for now, you will simulate a synchronous invocation with test events, just as you did previously:
 1. Go to your S3 bucket and upload the dataset [`reviews_Musical_Instruments_5.json.zip`](../data/reviews_Musical_Instruments_5.json.zip).
-2. Modify the code of Lambda function you created earlier so that it acts as a data preprocessing script, similar to the one used in your processing jobs. Alternatively, you can upload [code.zip](./code.zip) provided to override your Lambda function's code. Simply select *Upload from* → *.zip file* and upload the file. Note that the name of the Python file containing the function handler must be `lambda_function.py`, not any name.\
-If you decide to implement your own Lambda function, remember to properly define `lambda_handler` function, as your Lambda function will only execute this function. If needed, you can include helper functions in your code. Moreover, your code should directly download the raw dataset using its S3 location extracted from the `event` argument, which will be explained later, and should directly upload training set and testing set into your S3 bucket. These actions requires you to work with AWS SDK for Python, i.e. [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html). Lastly, Lambda function restricts your file operations within the local directory `/tmp/`. Hence, all files created, downloaded, or extracted must be in this folder.
+2. Modify the code of Lambda function you created earlier so that it acts as a data preprocessing script, similar to the one used in your processing jobs. Alternatively, you can upload [code.zip](./code.zip) provided to override your Lambda function's code. Simply select *Upload from* → *.zip file* and upload the file. Note that the name of the Python file containing the function handler must be `lambda_function.py`, unless configured otherwise in *Runtime settings*.\
+If you decide to implement your own Lambda function, remember to properly define `lambda_handler` function, as your Lambda function will only execute this function. If needed, you can include multiple helper functions in your code. Moreover, your code should directly download the raw dataset using its S3 location extracted from the `event` argument, which will be explained later, and should directly upload training set and testing set into your S3 bucket. These actions requires you to work with AWS SDK for Python, i.e. [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html). Lastly, Lambda function restricts your file operations within the local directory `/tmp/`. Hence, all files created, downloaded, or extracted must be in this folder.
 <p align="center"><img src="img/upload-code.png" width="80%"></p>
 
 3. Go to *Configuration* tab, select *General configuration* on the left sidebar. Then select *Edit* on the right.
@@ -118,8 +118,8 @@ If you decide to implement your own Lambda function, remember to properly define
 6. Search for *AmazonS3FullAccess* and select it. Scroll down and click on *Add permissions* button.
 <p align="center"><img src="img/s3-permission.png" width="80%"></p>
 
-7. Go back to the previous browser tab, Lambda function's configuration console, and click on *Save* button.
-8. Go to the *Test* tab and create a new test event. This time, select *S3 Put* as *Template*. This will simulate the actual event data that is sent to a Lambda function when a file is uploaded into an observed S3 bucket.
+7. Go back to the configuration console of your Lambda function and click on *Save* button.
+8. Go to the *Test* tab and create a new test event. This time, select *S3 Put* as *Template*. This will simulate an event data that is sent to a Lambda function when a file is uploaded into an observed S3 bucket.
 <p align="center"><img src="img/test-event.png" width="80%"></p>
 
 9. In *Event JSON*, you can see that this is what will be sent to your Lambda function’s handler, via the `event` argument. To match the desired test scenario, replace the text inside the *name* field under the *bucket* field with your S3 bucket name. Also, replace the text inside the *key* field under the *object* field with key name of newly uploaded dataset, not its S3 location as explained in the first tutorial. These are the two values your function handler should extract from the `event` argument. \
@@ -130,7 +130,7 @@ Note that the *Records* field in the event payload contains a list, not subfield
 
 After a few minutes, you will receive the notification within the *Test* tab. If it fails, try to fix the problem showed in the notification and in the CloudWatch Logs. If it succeeds, you will be able to see training set and testing set of the new dataset in your S3 bucket.
 
-Next, you will trigger this Lambda function asynchronously with real event:
+Next, you will trigger this Lambda function asynchronously with real events:
 1. From the Lambda function console, click on the *+ Add trigger* button.
 <p align="center"><img src="img/add-trigger.png" width="80%"></p>
 
@@ -138,12 +138,12 @@ Next, you will trigger this Lambda function asynchronously with real event:
 <p align="center"><img src="img/trigger-source.png" width="50%"></p>
 
 3. In the *Bucket* field, select your S3 bucket name.
-4. In the *Event types* field, deselect *All objects create events* and select *PUT* and *Multipart upload completed* only. This ensures the Lambda function is triggered only when new objects are uploaded.
+4. In the *Event types* field, deselect *All objects create events* and select *PUT* and *Multipart upload completed* only. This ensures the Lambda function is triggered only when objects are uploaded.
 <p align="center"><img src="img/event-type.png" width="50%"></p>
 
 5. In the *Prefix* field, enter the directory path in your bucket where the datasets are expected to be uploaded. This will filter events so that only objects uploaded to that path will trigger the Lambda function.
 6. In the *Subfix* field, enter `.json.zip` as this will restrict the invocation to this certain file type.
-7. Tick the checkbox in the *Recursive invocation* field. This acknowledgement warns you about the risk of recursive invocations. They happen when your Lambda function is automatically triggered by its own uploads. Specifically, when uploaded files reside in the same bucket and match the prefix as well as the file type you specified in this setting. 
+7. Tick the checkbox in the *Recursive invocation* field. This acknowledgement warns you about the risk of recursive invocations. They happen when your Lambda function is automatically triggered by its own uploads. Specifically, when uploaded files by your function reside in the same bucket and match the prefix as well as the file type you specified in this setting. 
 <p align="center"><img src="img/trigger-config.png"></p>
  
 8. Click on *Add* button to finalize the trigger setting.
@@ -163,6 +163,8 @@ AWS Step Functions is a visual workflow service that helps you use AWS services 
 It is based on two abstractions:
 * State machine: serverless workflow, which is a series of event-driven steps.
 * Task: a state within a workflow that represents a single unit of work performed by another AWS service.
+
+<p align="center"><img src="img/concept.png" width="60%"></p>
 
 Advantages:
 * Intuitive UI.
@@ -269,9 +271,9 @@ Now it's time to contruct an ML workflow with Step Functions:
     The first element of the list is for the dataset. Provide its S3 location and local path in the corresponding subfields, *S3Uri* and *LocalPath*. Each execution of the state machine will require you to work with different dataset in different bucket. Thus, you should use JSONata expression to retrieve the S3 location of the dataset from the state input, e.g. `{% $states.input.prefix & $states.input.dataset %}`. Since this is the first state in your state machine, its input will directly be the input of state machine. Later, you will execute your state machine with an input like this:
     ```JSON
     {
-    "bucket": "your-bucket",
-    "prefix": "s3://your-bucket/data/",
-    "dataset": "reviews_Musical_Instruments_5.json.zip"
+      "bucket": "your-bucket",
+      "prefix": "s3://your-bucket/data/",
+      "dataset": "dataset.json.zip"
     }
     ```
     The second element is for the Python script. Provide the S3 location and the local path in the corresponding subfields. No JSONata expression needed.
@@ -325,7 +327,7 @@ Now it's time to contruct an ML workflow with Step Functions:
       "test": "{% $states.input.prefix & 'test/' & $split($states.input.dataset, '.', 1)[0] & '_test.txt' %}"
     }
     ```
-14. Go to the *Variables* tab and enter the text shown below to assign the bucket name extracted from this state's input to the variable `bucket`. This variable can be later referenced in subsequent states.
+14. Go to the *Variables* tab and enter the text shown below to assign the bucket name, extracted from this state's input, to the variable `bucket`. This variable can be later referenced in subsequent states.
 <p align="center"><img src="img/variables.png" width="60%"></p>
 
 15. Click on the second state in the workflow. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
@@ -441,7 +443,7 @@ Now it's time to contruct an ML workflow with Step Functions:
 33. Move to the *Choice* state. At this state, you will make a loop that occasionally checks for the endpoint status via the output of *DescribeEndpoint*. The loop will stop when the endpoint creation is done. To do this, scroll down to the *Choice Rules* section and click on the pencil icon of *Rule #1*.
 <p align="center"><img src="img/edit-rule.png" width="60%"></p>
 
-34. In the *Condition* field, enter the JSONata expression below to check if the endpoint status is *Creating*. Because you don't specify the output for the *DescribeEndpoint* state, it will have the API response as state output and pass that to the next state. Therefore, you can easily retrieve the endpoint status from the API response.
+34. In the *Condition* field, enter the JSONata expression below to let the state check if the endpoint status is *Creating*. Because you don't specify the output for *DescribeEndpoint*, it will have the API response as state output and pass that to the next state. Therefore, you can easily retrieve the endpoint status from the API response.
 ```JSON
 {% $states.input.EndpointStatus = 'Creating' %}
 ```
@@ -569,4 +571,6 @@ If you have done your practice, please make sure you have completely deleted any
 ## Epilogue
 Congratulations! You have successfully built and automated your first machine learning workflow. This marks a significant milestone in building production-ready, event-driven ML solutions using AWS services. 
 
-As a best practice, __remember to delete or turn off__ any cost-consuming instances in AWS SageMaker AI and AWS Lambda. Moreover, you are encouraged to practice what you have learned so far to a different use case.
+As a best practice, __remember to delete or turn off__ any cost-consuming instances in Amazon SageMaker AI and AWS Lambda. Moreover, you are encouraged to practice what you have learned so far to a different use case.
+
+After you have established a streamlined ML workflow, the final step is to monitor the performance of your model in production.
