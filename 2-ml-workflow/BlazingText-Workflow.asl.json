@@ -1,0 +1,252 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Pre-process Data",
+  "States": {
+    "Pre-process Data": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sagemaker:createProcessingJob.sync",
+      "Arguments": {
+        "ProcessingJobName": "{% 'BlazingText-' & $millis() %}",
+        "RoleArn": "arn:aws:iam::001562694894:role/service-role/AmazonSageMaker-ExecutionRole-20260308T011224",
+        "ProcessingResources": {
+          "ClusterConfig": {
+            "InstanceCount": 1,
+            "InstanceType": "ml.m5.xlarge",
+            "VolumeSizeInGB": 1
+          }
+        },
+        "ProcessingInputs": [
+          {
+            "InputName": "input",
+            "S3Input": {
+              "S3DataType": "S3Prefix",
+              "S3InputMode": "File",
+              "S3Uri": "{% $states.input.prefix & $states.input.dataset %}",
+              "LocalPath": "/opt/ml/processing/input/data"
+            }
+          },
+          {
+            "InputName": "code",
+            "S3Input": {
+              "S3DataType": "S3Prefix",
+              "S3InputMode": "File",
+              "S3Uri": "s3://ml-workflow-1/data/hello_blaze_preprocess.py",
+              "LocalPath": "/opt/ml/processing/input/code"
+            }
+          }
+        ],
+        "AppSpecification": {
+          "ImageUri": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-scikit-learn:1.2-1-cpu-py3",
+          "ContainerEntrypoint": [
+            "python3",
+            "/opt/ml/processing/input/code/hello_blaze_preprocess.py"
+          ],
+          "ContainerArguments": [
+            "{% $states.input.dataset %}"
+          ]
+        },
+        "ProcessingOutputConfig": {
+          "Outputs": [
+            {
+              "OutputName": "train_set",
+              "S3Output": {
+                "S3Uri": "{% $states.input.prefix & 'train/' %}",
+                "LocalPath": "/opt/ml/processing/output/train",
+                "S3UploadMode": "EndOfJob"
+              }
+            },
+            {
+              "OutputName": "test_set",
+              "S3Output": {
+                "S3Uri": "{% $states.input.prefix & 'test/' %}",
+                "LocalPath": "/opt/ml/processing/output/test",
+                "S3UploadMode": "EndOfJob"
+              }
+            }
+          ]
+        }
+      },
+      "Next": "Train Model",
+      "Output": {
+        "train": "{% $states.input.prefix & 'train/' & $split($states.input.dataset, '.', 1)[0] & '_train.txt' %}",
+        "test": "{% $states.input.prefix & 'test/' & $split($states.input.dataset, '.', 1)[0] & '_test.txt' %}"
+      },
+      "Assign": {
+        "bucket": "{% $states.input.bucket %}"
+      }
+    },
+    "Train Model": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sagemaker:createTrainingJob.sync",
+      "Arguments": {
+        "TrainingJobName": "{% 'BlazingText-' & $millis() %}",
+        "RoleArn": "arn:aws:iam::001562694894:role/service-role/AmazonSageMaker-ExecutionRole-20260308T011224",
+        "AlgorithmSpecification": {
+          "TrainingImage": "811284229777.dkr.ecr.us-east-1.amazonaws.com/blazingtext:1",
+          "TrainingInputMode": "File"
+        },
+        "ResourceConfig": {
+          "VolumeSizeInGB": 5,
+          "InstanceCount": 1,
+          "InstanceType": "ml.m5.xlarge"
+        },
+        "HyperParameters": {
+          "mode": "supervised"
+        },
+        "InputDataConfig": [
+          {
+            "ChannelName": "train",
+            "DataSource": {
+              "S3DataSource": {
+                "S3DataType": "S3Prefix",
+                "S3Uri": "{% $states.input.train %}"
+              }
+            }
+          },
+          {
+            "ChannelName": "validation",
+            "DataSource": {
+              "S3DataSource": {
+                "S3DataType": "S3Prefix",
+                "S3Uri": "{% $states.input.test %}"
+              }
+            }
+          }
+        ],
+        "OutputDataConfig": {
+          "S3OutputPath": "{% 's3://' & $bucket & '/models/' %}"
+        },
+        "StoppingCondition": {
+          "MaxRuntimeInSeconds": 600
+        }
+      },
+      "Next": "Deploy Model",
+      "Output": "{% $states.result.ModelArtifacts.S3ModelArtifacts %}"
+    },
+    "Deploy Model": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sagemaker:createModel",
+      "Arguments": {
+        "ModelName": "{% 'ReviewClassifier-' & $millis() %}",
+        "ExecutionRoleArn": "arn:aws:iam::001562694894:role/service-role/AmazonSageMaker-ExecutionRole-20260308T011224",
+        "PrimaryContainer": {
+          "Image": "811284229777.dkr.ecr.us-east-1.amazonaws.com/blazingtext:1",
+          "Mode": "SingleModel",
+          "ModelDataUrl": "{% $states.input %}"
+        }
+      },
+      "Next": "Parallel",
+      "Output": "{% $split($states.result.ModelArn, '/')[1] %}"
+    },
+    "Parallel": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "StartAt": "Create Endpoint Config",
+          "States": {
+            "Create Endpoint Config": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sagemaker:createEndpointConfig",
+              "Arguments": {
+                "EndpointConfigName": "{% 'ReviewClassifier-' & $millis() %}",
+                "ProductionVariants": [
+                  {
+                    "ModelName": "{% $states.input %}",
+                    "InitialInstanceCount": 1,
+                    "InstanceType": "ml.m5.large",
+                    "VariantName": "variant-1"
+                  }
+                ]
+              },
+              "Next": "Create Endpoint",
+              "Output": "{% $split($states.result.EndpointConfigArn, '/')[1] %}"
+            },
+            "Create Endpoint": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sagemaker:createEndpoint",
+              "Arguments": {
+                "EndpointConfigName": "{% $states.input %}",
+                "EndpointName": "BlazingText-Reviews-Classifier"
+              },
+              "Next": "Get Endpoint Info"
+            },
+            "Get Endpoint Info": {
+              "Type": "Task",
+              "Arguments": {
+                "EndpointName": "BlazingText-Reviews-Classifier"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sagemaker:describeEndpoint",
+              "Next": "Endpoint Ready?"
+            },
+            "Endpoint Ready?": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Next": "Wait",
+                  "Condition": "{% $states.input.EndpointStatus = 'Creating' %}"
+                }
+              ],
+              "Default": "Invoke Endpoint"
+            },
+            "Wait": {
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "Get Endpoint Info"
+            },
+            "Invoke Endpoint": {
+              "Type": "Task",
+              "Arguments": {
+                "Body": "{\"instances\": [\"Terrible experience, item arrived late and broken.\", \"Customer support was responsive and resolved my issue quickly.\", \"I have no idea about this!\"]}",
+                "EndpointName": "BlazingText-Reviews-Classifier"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sagemakerruntime:invokeEndpoint",
+              "Next": "Delete Endpoint"
+            },
+            "Delete Endpoint": {
+              "Type": "Task",
+              "Arguments": {
+                "EndpointName": "BlazingText-Reviews-Classifier"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:sagemaker:deleteEndpoint",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Batch Inference",
+          "States": {
+            "Batch Inference": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
+              "Arguments": {
+                "TransformJobName": "{% 'ReviewClassifier-' & $millis() %}",
+                "ModelName": "{% $states.input %}",
+                "TransformResources": {
+                  "InstanceCount": 1,
+                  "InstanceType": "ml.m5.large"
+                },
+                "TransformInput": {
+                  "ContentType": "application/json",
+                  "DataSource": {
+                    "S3DataSource": {
+                      "S3DataType": "S3Prefix",
+                      "S3Uri": "s3://ml-workflow-1/inference/custom_reviews.json"
+                    }
+                  },
+                  "SplitType": "Line"
+                },
+                "TransformOutput": {
+                  "AssembleWith": "Line",
+                  "S3OutputPath": "{% 's3://' & $bucket & '/inference/' %}"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "QueryLanguage": "JSONata"
+}
