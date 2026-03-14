@@ -8,7 +8,7 @@
       <ul>
         <li><a href="#introduction">Introduction</a></li>
         <li><a href="#lambda-functions">Lambda functions</a></li>
-        <li><a href="#invoking-a-lambda-function">Invoking a Lambda function</a>
+        <li><a href="#invoking-lambda-function">Invoking Lambda function</a>
           <ul>
             <li><a href="#types-of-invocations">Types of invocations</a></li>
             <li><a href="#setting-up">Setting up</a></li>
@@ -20,11 +20,22 @@
     </li>
     <li><a href="#aws-step-functions">AWS Step Functions</a>
       <ul>
-        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#introduction-1">Introduction</a></li>
         <li><a href="#amazon-states-language">Amazon States Language</a></li>
-        <li><a href="#setting-up-role">Setting up role</a></li>
-        <li><a href="#creating-a-workflow">Creating a workflow</a></li>
-        <li><a href="#invoking-a-workflow">Invoking a workflow</a></li>
+        <li><a href="#setting-up-1">Setting up</a></li>
+        <li><a href="#creating-workflow">Creating workflow</a>
+          <ul>
+            <li><a href="#dafting">Drafting</a></li>
+            <li><a href="#configuring-processing-job">Configuring Processing Job</a></li>
+            <li><a href="#configuring-training-job">Configuring Training Job</a></li>
+            <li><a href="#configuring-model-deployment">Configuring Model Deployment</a></li>
+            <li><a href="#configuring-endpoint">Configuring Endpoint</a></li>
+            <li><a href="#configuring-batch-transform-job">Configuring Batch Transform Job</a></li>
+            <li><a href="#finishing-up">Finishing up</a></li>
+          </ul>
+        </li>
+        <li><a href="#executing-state-machine">Executing state machine</a></li>
+        <li><a href="#invoking-workflow">Invoking workflow</a></li>
       </ul>
     </li>
     <li><a href="#epilogue">Epilogue</a></li>
@@ -95,7 +106,7 @@ In this exercise, you're going to create a basic Lambda function in Python. Then
 14. Click through the log of an event you want to investigate and you can see the error message from there.
 <p align="center"><img src="img/error-log.png" width="80%"></p>
 
-### Invoking a Lambda function
+### Invoking Lambda function
 #### Types of invocations
 There are two types of Lambda function invocations:
 * Synchronous invocation will launch the function and expect a immediate response from the function. As a general rule, you'll be invoking Lambda functions synchronously in ML engineering operations.
@@ -197,18 +208,18 @@ The Amazon States Language (ASL) is a JSON-based, structured language used to de
 ASL originally employs JSONPath as its query language. However, it recently adopts [JSONata](https://docs.jsonata.org/overview.html) as the default query language. When a state machine execution receives JSON input from execution, it passes that data to the first state in the workflow as input. With JSONata, you can retrieve a state input from `states.input`. If a state is successfully completed, its API response will be stored in `states.result`. Furthermore, you can use JSONata to dynamically configure your state machine during each execution.
 <p align="center"><img src="img/vars-jsonata.png" width="80%"></p>
 
-In this exercise, you will embed JSONata expression inside a string value. The expression must start with `{%` with no leading spaces, and must end with `%}` with no trailing spaces. Improperly opening or closing the expression will result in a validation error.
+In this exercise, you will ue JSONata expression a lot. The expression must start with `{%` with no leading spaces, and must end with `%}` with no trailing spaces. Improperly opening or closing the expression will result in a validation error.
 ```JSON
-"{% <JSONata expression> %}"
+{% <JSONata expression> %}
 ```
-Any JSONata functions, provided by Step Functions, or variables must start with the character `$`, e.g. `$states.result` or `$split($variable_1)[0]`. Moreover, because the JSONata expression is in a string value, to add a string into the expression, use the single quote `'` or `\"`. Finally, to concatenate string, use the ampersand character `&`. For example:
+Any JSONata functions, provided by Step Functions, or variables must start with the character `$`, e.g. `$states.result` or `$split($variable_1)[0]`. Moreover, if the JSONata expression is embedded in ASL, it should be enclosed within a string. Thus, to add a string into the expression, use the single quote `'` or `\"`. Finally, to concatenate string, use the ampersand character `&`. For example:
 ```JSON
 "{% $states.input.prefix & 'train/' & $split($states.input.dataset, '.', 1)[0] & '_train.txt' %}"
 ```
 
 No worries, this tutorial will help you set up an ML workflow with ASL along the way. For more information, read [this](https://docs.aws.amazon.com/step-functions/latest/dg/transforming-data.html#writing-jsonata-expressions-in-json-strings) and watch [this](https://www.youtube.com/watch?v=kVWxJoO_zc8).
 
-### Setting up role
+### Setting up
 First of all, you need to create a role and your state machine will use it to gain full access to SageMaker AI and CloudWatch Events:
 1. Head to IAM using the search bar.
 <p align="center"><img src="img/iam.png" width="60%"></p>
@@ -223,7 +234,8 @@ First of all, you need to create a role and your state machine will use it to ga
 5. From the list of role names, click on the name of the role you have just created. From the role details console, attach both *AmazonSageMakerFullAccess* and *CloudWatchEventsFullAccess* to your role. \
 Your state machine needs access to Amazon CloudWatch Events (now part of Amazon EventBridge) so that it can send logs and events to CloudWatch. This enables you to monitor, debug, and manage your workflow.
 
-### Creating a workflow
+### Creating workflow
+#### Drafting
 Now it's time to contruct an ML workflow with Step Functions:
 1. Head to Step Functions using the search bar and in the left sidebar, select *State machines*.
 2. Click the *Create state machine* button.
@@ -233,10 +245,11 @@ Now it's time to contruct an ML workflow with Step Functions:
 4. Take a look at the picture below. Now, use the search bar in the left sidebar of the console, find the illustrated states, and drag them onto the graph canvas to create the corresponding workflow. Rename each state as needed.
 <p align="center"><img src="img/stepfunctions-graph.png"></p>
 
-5. Click on the first state. In the right sidebar, go to the *Configuration* tab, scroll down, and check the option *Wait for task to complete*.
+#### Configuring Processing Job
+1. Click on the first state. In the right sidebar, go to the *Configuration* tab, scroll down, and check the option *Wait for task to complete*.
 <p align="center"><img src="img/sync.png" width="60%"></p>
 
-6. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead.You will gradually add more fields inside the curly braces to correctly configure this state. Each field must be separated by a comma and formatted in *valid JSON syntax*. For more information about CreateProcessingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html). <p align="center"><img src="img/arg-config.png" width="70%"></p>
+2. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead.You will gradually add more fields inside the curly braces to correctly configure this state. Each field must be separated by a comma and formatted in *valid JSON syntax*. For more information about CreateProcessingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateProcessingJob.html). <p align="center"><img src="img/arg-config.png" width="70%"></p>
 
     ```JSON
     {
@@ -244,11 +257,11 @@ Now it's time to contruct an ML workflow with Step Functions:
       "RoleArn": "?"
     }
     ```
-7. Since the name for new processing job must be unique, you should not hard-code its name in the *ProcessingJobName* field. If a static name is used, the state machine will create processing job with the same name for every execution, which will cause error and disrupt the workflow. Instead, dynamically generate a unique name using JSONata expression. In the *ProcessingJobName* field, enter the leading string of your choice for the name and concatenate it with the function `millis()`. For example, `{% 'BlazingText-' & $millis() %}`. Feel free to use different expression.
-8. In the *RoleArn* field, enter the ARN (Amazon Resource Name) of the role you created and used throughout your SageMaker AI experiments in the last tutorial. To do this, head to IAM. In the left navigation sidebar, go to *Access Management* → *Roles*. Then find and click on the name of the role and you will be able to see its ARN.
+3. Since the name for new processing job must be unique, you should not hard-code its name in the *ProcessingJobName* field. If a static name is used, the state machine will create processing job with the same name for every execution, which will cause error and disrupt the workflow. Instead, dynamically generate a unique name using JSONata expression. In the *ProcessingJobName* field, enter the leading string of your choice for the name and concatenate it with the function `millis()`. For example, `{% 'BlazingText-' & $millis() %}`. Feel free to use different expression.
+4. In the *RoleArn* field, enter the ARN (Amazon Resource Name) of the role you created and used throughout your SageMaker AI experiments in the last tutorial. To do this, head to IAM. In the left navigation sidebar, go to *Access Management* → *Roles*. Then find and click on the name of the role and you will be able to see its ARN.
 <p align="center"><img src="img/sagemaker-role.png" width="80%"></p>
 
-9. Add the field below to set up the resources for the job. Remember to seperate it from the previous field with a comma.
+5. Add the field below to set up the resources for the job. Remember to seperate it from the previous field with a comma.
     ```JSON
     "ProcessingResources": {
       "ClusterConfig": {
@@ -258,7 +271,7 @@ Now it's time to contruct an ML workflow with Step Functions:
       }
     }
     ```
-10. Add the field below to set up the inputs for the job. Remember to seperate it from the previous field with a comma. This field contains a list. Just like before, your processing job will have 2 inputs: raw dataset and Python script. So, this list contains two corresponding elements.
+6. Add the field below to set up the inputs for the job. Remember to seperate it from the previous field with a comma. This field contains a list. Just like before, your processing job will have 2 inputs: raw dataset and Python script. So, this list contains two corresponding elements.
     ```JSON
     "ProcessingInputs": [
       {
@@ -290,7 +303,7 @@ Now it's time to contruct an ML workflow with Step Functions:
     }
     ```
     The second element is for the Python script. Provide the S3 location and the local path in the corresponding subfields. No JSONata expression needed.
-11. Add the below field. As before, find and enter the registry path of scikit-learn's processing image in the *AppSpecification* field. For the second element of the *ContainerEntrypoint* field, enter the local address to your Python script, e.g. `/opt/ml/processing/input/code/<your_script_name>`. If you use the provided Python code, enter a JSONata expression in the *ContainerArguments* field, which retrieves the dataset name through state input. Otherwise, remove this subfield.
+7. Add the below field. As before, find and enter the registry path of scikit-learn's processing image in the *AppSpecification* field. For the second element of the *ContainerEntrypoint* field, enter the local address to your Python script, e.g. `/opt/ml/processing/input/code/<your_script_name>`. If you use the provided Python code, enter a JSONata expression in the *ContainerArguments* field, which retrieves the dataset name through state input. Otherwise, remove this subfield.
     ```JSON
     "AppSpecification": {
       "ImageUri": "?",
@@ -303,7 +316,7 @@ Now it's time to contruct an ML workflow with Step Functions:
       ]
     }
     ```
-12. Add the below field to set up the outputs for the job. The *Outputs* field contains a list with two items defining the configuration for the training set and the testing set. In each element, specify where the set should be uploaded in your bucket in the *S3Uri* field, and the local path where your Python script saves the set in the *LocalPath* field. Use JSONata expressions to dynamically determine the S3 output locations from the state input. 
+8. Add the below field to set up the outputs for the job. The *Outputs* field contains a list with two items defining the configuration for the training set and the testing set. In each element, specify where the set should be uploaded in your bucket in the *S3Uri* field, and the local path where your Python script saves the set in the *LocalPath* field. Use JSONata expressions to dynamically determine the S3 output locations from the state input. 
     ```JSON
     "ProcessingOutputConfig": {
       "Outputs": [
@@ -326,7 +339,7 @@ Now it's time to contruct an ML workflow with Step Functions:
       ]
     }
     ```
-13. You have done setting up all required and important arguments for the first state. But you need to define the output of this state so that it will pass the expected S3 locations of the training set and the testing set to the next state in the workflow. Scroll to the *Output* field right below and enter the following:
+9. You have done setting up all required and important arguments for the first state. But you need to define the output of this state so that it will pass the expected S3 locations of the training set and the testing set to the next state in the workflow. Scroll to the *Output* field right below and enter the following:
     ```JSON
     {
       "train": "?",
@@ -340,11 +353,12 @@ Now it's time to contruct an ML workflow with Step Functions:
       "test": "{% $states.input.prefix & 'test/' & $split($states.input.dataset, '.', 1)[0] & '_test.txt' %}"
     }
     ```
-14. Go to the *Variables* tab and enter the text shown below to assign the bucket name, extracted from this state's input, to the variable `bucket`. This variable can be later referenced in subsequent states.
+10. Go to the *Variables* tab and enter the text shown below to assign the bucket name, extracted from this state's input, to the variable `bucket`. This variable can be later referenced in subsequent states.
 <p align="center"><img src="img/variables.png" width="60%"></p>
 
-15. Click on the second state in the workflow. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
-16. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead. You will gradually add more fields to correctly configure this state. For more information about CreateTrainingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateTrainingJob.html).
+#### Configuring Training Job
+1. Click on the second state in the workflow. In the *Configuration* tab, scroll down and check the option *Wait for task to complete*.
+2. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead. You will gradually add more fields to correctly configure this state. For more information about CreateTrainingJob's arguments, go [here](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateTrainingJob.html).
     ```JSON
     {
       "TrainingJobName": "?",
@@ -352,14 +366,14 @@ Now it's time to contruct an ML workflow with Step Functions:
     }
     ```
     As earlier, you should dynamically generate a unique name for the training job using JSONata expression in the *TrainingJobName* field. In the *RoleArn* field, enter the ARN of the same role used in the previous state.
-17. Add the below field. Then, find and enter registry path where container image of your select algorithm, BlazingText, is stored in Amazon ECR.
+3. Add the below field. Then, find and enter registry path where container image of your select algorithm, BlazingText, is stored in Amazon ECR.
     ```JSON
     "AlgorithmSpecification": {
       "TrainingImage": "?",
       "TrainingInputMode": "File"
     }
     ```
-18. Add the field below to set up the resources for the job.
+4. Add the field below to set up the resources for the job.
     ```JSON
     "ResourceConfig": {
       "VolumeSizeInGB": 5,
@@ -367,13 +381,13 @@ Now it's time to contruct an ML workflow with Step Functions:
       "InstanceType": "ml.m5.large"
     }
     ```
-19. To customize hyperparemeters of the BlazingText algorithm, add the below field. You are encouraged to add more subfields to calibrate more hyperparemeters. Remeber to read its [documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext_hyperparameters.html#blazingtext_hyperparameters_text_class) for more information.
+5. To customize hyperparemeters of the BlazingText algorithm, add the below field. You are encouraged to add more subfields to calibrate more hyperparemeters. Remeber to read its [documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext_hyperparameters.html#blazingtext_hyperparameters_text_class) for more information.
     ```JSON
     "HyperParameters": {
       "mode": "supervised"
     }
     ```
-20. Add below field to configure input data for the job. The *InputDataConfig* field contains a list with two elements, one for the training set and one for the testing set. In each one, specify S3 location of the corresponding set in the *S3Uri* field. Use JSONata expressions to extract the locations from the state input, which is the output of last state. Since the chosen algorithm only works with one type of data, plain text, you don't have to add and specify the *ContentType* field in each element. But if you work with other algorithms, pay attention to this in their documentation, as they may have different data format options to select.
+6. Add below field to configure input data for the job. The *InputDataConfig* field contains a list with two elements, one for the training set and one for the testing set. In each one, specify S3 location of the corresponding set in the *S3Uri* field. Use JSONata expressions to extract the locations from the state input, which is the output of last state. Since the chosen algorithm only works with one type of data, plain text, you don't have to add and specify the *ContentType* field in each element. But if you work with other algorithms, pay attention to this in their documentation, as they may have different data format options to select.
     ```JSON
     "InputDataConfig": [
       {
@@ -396,25 +410,26 @@ Now it's time to contruct an ML workflow with Step Functions:
       }
     ]
     ```
-21. Add below field to configure output data for the job. In the *S3OutputPath* field, enter the S3 path where you want SageMaker AI to output your model artifact. You should use JSONata expressions to dynamically construct this path with the assigned variable `bucket`, e.g. `{% 's3://' & $bucket & '/models/' %}`. 
+7. Add below field to configure output data for the job. In the *S3OutputPath* field, enter the S3 path where you want SageMaker AI to output your model artifact. You should use JSONata expressions to dynamically construct this path with the assigned variable `bucket`, e.g. `{% 's3://' & $bucket & '/models/' %}`. 
     ```JSON
     "OutputDataConfig": {
       "S3OutputPath": "?"
     }
     ```
-22. Add this last field to set maximum runtime to 10 minutes.
+8. Add this last field to set maximum runtime to 10 minutes.
     ```JSON
     "StoppingCondition": {
       "MaxRuntimeInSeconds": 600
     }
     ```
-23. Suppose that the training job runs successfully and creates a model artifact, the exact S3 location of the model artifact will be stored in the API response. You should pass this location to the next state in the workflow. Scroll to the *Output* field right below and enter the following:
+9. Suppose that the training job runs successfully and creates a model artifact, the exact S3 location of the model artifact will be stored in the API response. You should pass this location information to the next state in the workflow. Scroll to the *Output* field right below and enter the following:
     ```JSON
-    {
-      "artifact": "{% $states.result.ModelArtifacts.S3ModelArtifacts %}"
-    }
+    {% $states.result.ModelArtifacts.S3ModelArtifacts %}
     ```
-24. Move to the third state of the workflow. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+    Unless you would like to pass more than just one field of information, you can directly insert JSONata expression or quote-delimited string instead of ASL and easily retrieve it later using `$state.input` without additional subfield.
+
+#### Configuring Model Deployment
+1. Move to the third state of the workflow. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "ModelName": "?",
@@ -426,9 +441,11 @@ Now it's time to contruct an ML workflow with Step Functions:
       }
     }
     ```
-25. In *ModelName*, generate a unique name for the model object. In *ExecutionRoleArn*, enter the usual ARN. In *Image*, enter registry path of container image of *BlazingText*. In *ModelDataUrl*, enter S3 location of model artifact, extracted from state input.
-26. Scroll down to the *Output* field. Set it to pass the name of the model object to the next state. You should use the `split` function on the `states.result.ModelArn` variable to isolate the name from the full ARN string. 
-27. Move to the *CreateEndpointConfig* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+2. In *ModelName*, generate a unique name for the model object. In *ExecutionRoleArn*, enter the usual ARN. In *Image*, enter registry path of container image of *BlazingText*. In *ModelDataUrl*, enter S3 location of model artifact, extracted from state input.
+3. Scroll down to the *Output* field. Set it to pass the name of the model object to the next state. You should use the `split` function on the `states.result.ModelArn` variable to isolate the name from the full ARN string. 
+
+#### Configuring Endpoint
+1. Move to the *CreateEndpointConfig* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "EndpointConfigName": "?",
@@ -442,29 +459,28 @@ Now it's time to contruct an ML workflow with Step Functions:
       ]
     }
     ```
-28. In *EndpointConfigName*, generate a unique name for the endpoint configuration. In *ModelName*, enter the name of model object, extracted from state input.
-29. Scroll down to the *Output* field. Set it to pass the name of the endpoint configuration to the next state. You should use the `split` function on the `states.result.EndpointConfigArn` variable to isolate the name from the full ARN string.
-30. Move to the *CreateEndpoint* state. In the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+2. In *EndpointConfigName*, generate a unique name for the endpoint configuration. In *ModelName*, enter the name of model object, extracted from state input.
+3. Scroll down to the *Output* field. Set it to pass the name of the endpoint configuration to the next state. You should use the `split` function on the `states.result.EndpointConfigArn` variable to isolate the name from the full ARN string.
+4. Move to the *CreateEndpoint* state. In the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "EndpointConfigName": "?",
       "EndpointName": "BlazingText-Reviews-Classifier"
     }
     ```
-31. In *EndpointConfigName*, enter the name of endpoint configuration, extracted from state input. For the *EndpointName* field, since you will delete the endpoint shortly after you invoke it to save resources, you don't have to generate a unique name for it. But if you decide to generate, remember to pass its name to the next state.
-32. Move to the *DescribeEndpoint* state. In the *Arguments & Output* tab, under the *Arguments* field, enter the name of endpoint for *EndpointName*.
-33. Move to the *Choice* state. At this state, you will make a loop that occasionally checks for the endpoint status via the output of *DescribeEndpoint*. The loop will stop when the endpoint creation is done. To do this, scroll down to the *Choice Rules* section and click on the pencil icon of *Rule #1*.
+5. In *EndpointConfigName*, enter the name of endpoint configuration, extracted from state input. For the *EndpointName* field, since you will delete the endpoint shortly after you invoke it to save resources, you don't have to generate a unique name for it. But if you decide to generate, remember to pass its name to the next state.
+6.  Move to the *DescribeEndpoint* state. In the *Arguments & Output* tab, under the *Arguments* field, enter the name of endpoint for *EndpointName*.
+7.  Move to the *Choice* state. At this state, you will make a loop that occasionally checks for the endpoint status via the output of *DescribeEndpoint*. The loop will stop when the endpoint creation is done. To do this, scroll down to the *Choice Rules* section and click on the pencil icon of *Rule #1*.
 <p align="center"><img src="img/edit-rule.png" width="60%"></p>
 
-34. In the *Condition* field, enter the JSONata expression below to let the state check if the endpoint status is *Creating*. Because you don't specify the output for *DescribeEndpoint*, it will have the API response as state output and pass that to the next state. Therefore, you can easily retrieve the endpoint status from the API response.
+8.  In the *Condition* field, enter the JSONata expression below to let the state check if the endpoint status is *Creating*. Because you don't specify the output for *DescribeEndpoint*, it will have the API response as state output and pass that to the next state. Therefore, you can easily retrieve the endpoint status from the API response.
 ```JSON
 {% $states.input.EndpointStatus = 'Creating' %}
 ```
-35. Move to the *Wait* state. In the *Seconds* field, enter `60` to force the state machine wait for 1 minute before jumping to the next state. You can increase or decrease the waiting time as needed. In the *Next state* field, select *DescribeEndpoint* to make a loop.
+9.  Move to the *Wait* state. In the *Seconds* field, enter `60` to force the state machine wait for 1 minute before jumping to the next state. You can increase or decrease the waiting time as needed. In the *Next state* field, select *DescribeEndpoint* to make a loop.
 <p align="center"><img src="img/loop.png" width="80%"></p>
 
-
-36. Move to the *InvokeEndpoint* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+10. Move to the *InvokeEndpoint* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "Body": "{\"instances\": [\"Review sentence #1.\", \"Review sentence #2.\", \"Review sentence #3.\"]}",
@@ -472,14 +488,16 @@ Now it's time to contruct an ML workflow with Step Functions:
     }
     ```
     Replace the placeholder sentences with your custom review sentences and add more if needed.
-37. In the *Body* field, write down a list of custom review sentences, as many as you like.
-38. Move to the *DeleteEndpoint* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+11. In the *Body* field, write down a list of custom review sentences, as many as you like.
+12. Move to the *DeleteEndpoint* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "EndpointName": "BlazingText-Reviews-Classifier"
     }
     ```
-39. Move to the *CreateTransformJob* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
+
+#### Configuring Batch Transform Job
+1. Move to the *CreateTransformJob* state. Go to the *Arguments & Output* tab, remove text in the *Arguments* field and write below text instead:
     ```JSON
     {
       "TransformJobName": "?",
@@ -504,18 +522,21 @@ Now it's time to contruct an ML workflow with Step Functions:
       }
     }
     ```
-40. Fill in the missing parts with appropriate values or JSONata expressions.
-41. Now switch to the *Config* tab of the state machine console.
+2. Fill in the missing parts with appropriate values or JSONata expressions.
+
+#### Finishing up
+1. Now switch to the *Config* tab of the state machine console.
 <p align="center"><img src="img/config-tab.png" width="80%"></p>
 
-42. Scroll down to the *Permissions* section and select the role you have preserved for your state machine. Finally, click on the *Create* button on the top right.
+2. Scroll down to the *Permissions* section and select the role you have preserved for your state machine. 
+3. Finally, click on the *Create* button on the top right.
 <p align="center"><img src="img/create-state-machine.png" width="80%"></p>
 
 Alternatively, you can use *AWS Lambda: Invoke* state to intergrate your Lambda function from previous section as your first state of the workflow, instead of *Amazon SageMaker: CreateProcessingJob* state. With this setup, you have to change either state machine input or your Lambda function's code.
 
 Finally, you can add more states after *DeleteEndpoint* state to delete endpoint configuration and model object to free up resources.
 
-### Executing a state machine
+### Executing state machine
 To try out your new ML workflow, simply do the following:
 1. Go to your S3 bucket and delete all training sets, all testing sets, and all inference results of batch transform jobs from previous practices.
 2. In your state machine console, click on the *Start execution* button.
@@ -549,7 +570,7 @@ In addition, you can test an individual state while configuring it to ensure it 
 
 Keep in mind that the test state feature does not support [*Activity tasks*](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-activities.html), *Parallel* state, and *Map* state and it can run for up to 5 minutes.
 
-### Invoking a workflow
+### Invoking workflow
 The final step of this tutorial is to automate your newly made ML workflow. You can do this by utilizing Lambda function in conjunction with the AWS SDK for Python:
 1. Create a Lambda function with a Python runtime.
 2. Attach *AWSStepFunctionsFullAccess* to the role of this Lambda function.

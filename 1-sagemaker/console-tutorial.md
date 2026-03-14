@@ -115,7 +115,7 @@ __label__2 If you're new to gaming or like relatively simple games I recommend y
 Finally, it is your responsibility is to split the dataset into training set and testing set. Training set should represent 80% of the dataset, while the rest is testing set. Make sure that they don't overlap.
 
 All of the procedures mentioned above and more are collectively called *data pre-processing*, the first and most crucial step in any machine learning project. To do all of that, follow these steps:
-1. Navigate to Amazon SageMaker AI. In the left navigation sidebar, go to *Processing* → *Processing jobs*.
+1. Navigate to Amazon SageMaker AI. In the left navigation sidebar, go to *Data preparation* → *Processing jobs*.
 <p align="center"><img src="img/processing.png" width="60%"></p>
 
 2. Click on *Create processing job* button.
@@ -174,7 +174,7 @@ After you successfully pre-processed your dataset, it is time to train a model w
 7. Under *Stopping condition*, set *Maximum runtime* to 10 minutes. The training job will automatically stop if it exceeds this time limit. It is important that you set runtime limit for your training job because if it takes a long time, you will be charged more.
 <p align="center"><img src="img/training_config.png" width="60%"></p>
 
-8. In the *Hyperparameters* field, set *mode* to *supervised*.
+8. In the *Hyperparameters* field, set *mode* to *supervised*. You are encouraged to set more hyperparemeters, just remeber to read its [documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext_hyperparameters.html#blazingtext_hyperparameters_text_class) for more information.
 <p align="center"><img src="img/hyper_mode.png" width="60%"></p>
 
 9. In the *Input data configuration* field, enter the S3 location of your training set. Since the chosen algorithm only works with one type of data, plain text, you don't have to specify the content type of your data. But if you work with other algorithms, pay attention to this in their documentation, as they may have different data format options to select.
@@ -193,7 +193,7 @@ In SageMaker AI, an endpoint serves as an Application Programming Interface (API
 
 To deploy a model, first you have to create a model object in SageMaker AI from a model artifact:
 1. Navigate to Amazon SageMaker AI.
-2. In the left navigation sidebar, go to *Inference* → *Models*.
+2. In the left navigation sidebar, go to *Deployments & inference* → *Deployable models*.
 <p align="center"><img src="img/models.png" width="60%"></p>
 
 3. Click on *Create model* button.
@@ -220,8 +220,7 @@ Now that you have a model object in SageMaker AI, let's deploy it with an endpoi
 5. Under *Type of endpoint*, select *Provisioned*.
 <p align="center"><img src="img/endpoint_config.png" width="60%"></p>
 
-6. If you want your endpoint to handle prediction request asynchronously, turn on *Async Invocation Config* and provide neccessary information. If you also want your endpoint to save prediction request and response, switch *Enable data capture* on and fill in neccessary information. \
-Otherwise, click on *Create endpoint configuration* and then *Create endpoint* at the bottom.
+6. If you want your endpoint to handle prediction request asynchronously, turn on *Async Invocation Config* and provide neccessary information. If you also want your endpoint to save prediction request and response, switch *Enable data capture* on and fill in neccessary information. Otherwise, click on *Create endpoint configuration* and then *Create endpoint* at the bottom.
 
 Wait for a few moment. Once the endpoint status changes to *InService*, you can then interact with it and make real-time predictions on new data. This can be done through AWS SDK, such as `boto3` or `sagemaker` modules in Python, which is covered in [SDK tutorial](sdk-tutorial.ipynb). Alternatively, you can integrate your endpoint with other AWS services like AWS Lambda and AWS Step Functions, which will be covered in the next tutorial.
 
@@ -229,14 +228,14 @@ When sending a prediction request to your endpoint, check if the input data adhe
 
 For BlazingText algorithm, the inference data requires a different structure from the training data, as found in [its documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/blazingtext.html). You need to send a prediction request in the form of JSON object and indicate the content type of the request, which is `application/json`.
 
-<ins>**Please note**</ins>: Creating an endpoint and keeping it active **does incur costs** on your AWS account, even if it's idle. To avoid unwanted charges, delete any endpoint right after you finish your experiment, or when you are stepping away.
+<ins>**Please note**</ins>: Creating an endpoint and keeping it active **does incur costs** on your AWS account, even if it's idle. To avoid unwanted charges, delete any endpoint right after you finish your experiment, or when you are stepping away. Deleting model object and endpoint configuration are optional.
 
 ### Batch transform jobs
 Batch Transform is a compute job that performs inference using your trained model on large datasets. A batch transform job is ideal for large-scale predictions where low latency is not a priority. This differs from an endpoint in that endpoints service real-time, individual user requests for inference over time.
 
 To deploy a model with a batch transform job:
 1. Navigate to Amazon SageMaker AI.
-2. In the left navigation sidebar, go to *Inference* → *Batch transform jobs*.
+2. In the left navigation sidebar, go to *Deployments & inference* → *Batch transform jobs*.
 <p align="center"><img src="img/batch_job.png" width="60%"></p>
 
 3. Click on *Create batch transform job* button.
